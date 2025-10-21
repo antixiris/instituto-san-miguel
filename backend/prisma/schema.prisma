@@ -1,0 +1,639 @@
+// Prisma Schema para Instituto San Miguel - Plataforma E-Learning
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums
+enum UserRole {
+  STUDENT
+  INSTRUCTOR
+  ADMIN
+}
+
+enum CourseLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  EXPERT
+}
+
+enum CourseStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum EnrollmentStatus {
+  ACTIVE
+  COMPLETED
+  DROPPED
+  SUSPENDED
+}
+
+enum LessonType {
+  VIDEO
+  TEXT
+  QUIZ
+  EXERCISE
+  RESOURCE
+}
+
+enum QuestionType {
+  MULTIPLE_CHOICE
+  TRUE_FALSE
+  SHORT_ANSWER
+  ESSAY
+  CODE
+}
+
+enum SubmissionStatus {
+  PENDING
+  GRADED
+  RETURNED
+}
+
+enum AchievementType {
+  COURSE_COMPLETION
+  QUIZ_MASTER
+  PERFECT_SCORE
+  STREAK
+  EARLY_BIRD
+  HELPER
+}
+
+// Models
+
+// Usuario - Modelo base para autenticación y perfiles
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  password      String
+  firstName     String
+  lastName      String
+  role          UserRole @default(STUDENT)
+  avatar        String?
+  bio           String?
+  phone         String?
+  isActive      Boolean  @default(true)
+  emailVerified Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relaciones
+  enrollments        Enrollment[]
+  coursesInstructed  Course[]              @relation("CourseInstructor")
+  submissions        QuizSubmission[]
+  exerciseSubmissions ExerciseSubmission[]
+  achievements       UserAchievement[]
+  messages           Message[]
+  messageRecipients  MessageRecipient[]
+  announcements      Announcement[]
+  comments           Comment[]
+  progressRecords    Progress[]
+  articles           Article[]             @relation("ArticleAuthor")
+
+  @@index([email])
+  @@index([role])
+  @@map("users")
+}
+
+// Curso - Información del curso
+model Course {
+  id              String       @id @default(cuid())
+  title           String
+  slug            String       @unique
+  description     String
+  shortDescription String?
+  thumbnail       String?
+  level           CourseLevel  @default(BEGINNER)
+  status          CourseStatus @default(DRAFT)
+  price           Float        @default(0)
+  duration        Int?         // Duración estimada en horas
+  prerequisites   String?      // JSON array de prerequisitos
+  learningGoals   String?      // JSON array de objetivos
+  instructorId    String
+  categoryId      String?
+  featured        Boolean      @default(false)
+  published       Boolean      @default(false)
+  publishedAt     DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  // Relaciones
+  instructor   User         @relation("CourseInstructor", fields: [instructorId], references: [id])
+  category     Category?    @relation(fields: [categoryId], references: [id])
+  modules      Module[]
+  enrollments  Enrollment[]
+  announcements Announcement[]
+  tags         CourseTag[]
+
+  @@index([slug])
+  @@index([instructorId])
+  @@index([categoryId])
+  @@index([status])
+  @@map("courses")
+}
+
+// Categoría de cursos
+model Category {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  icon        String?
+  color       String?
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relaciones
+  courses Course[]
+
+  @@map("categories")
+}
+
+// Tags para cursos
+model Tag {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  slug      String   @unique
+  createdAt DateTime @default(now())
+
+  // Relaciones
+  courses CourseTag[]
+
+  @@map("tags")
+}
+
+// Relación muchos a muchos entre cursos y tags
+model CourseTag {
+  courseId String
+  tagId    String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  tag      Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([courseId, tagId])
+  @@map("course_tags")
+}
+
+// Módulo del curso
+model Module {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  order       Int
+  courseId    String
+  isPublished Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relaciones
+  course  Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons Lesson[]
+
+  @@index([courseId])
+  @@map("modules")
+}
+
+// Lección dentro de un módulo
+model Lesson {
+  id          String     @id @default(cuid())
+  title       String
+  description String?
+  type        LessonType
+  content     String?    // Contenido textual o JSON
+  videoUrl    String?    // URL del video (Vimeo/YouTube)
+  videoDuration Int?     // Duración en segundos
+  resources   String?    // JSON array de recursos descargables
+  order       Int
+  moduleId    String
+  isPublished Boolean    @default(false)
+  isFree      Boolean    @default(false) // Para preview gratuito
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  // Relaciones
+  module     Module     @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  quiz       Quiz?
+  exercise   Exercise?
+  progress   Progress[]
+  comments   Comment[]
+
+  @@index([moduleId])
+  @@map("lessons")
+}
+
+// Quiz/Cuestionario
+model Quiz {
+  id            String   @id @default(cuid())
+  lessonId      String   @unique
+  title         String
+  description   String?
+  timeLimit     Int?     // Tiempo límite en minutos
+  passingScore  Int      @default(70) // Porcentaje necesario para aprobar
+  maxAttempts   Int?     // Número máximo de intentos
+  shuffleQuestions Boolean @default(false)
+  showResults   Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relaciones
+  lesson      Lesson           @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  questions   QuizQuestion[]
+  submissions QuizSubmission[]
+
+  @@map("quizzes")
+}
+
+// Pregunta de quiz
+model QuizQuestion {
+  id          String       @id @default(cuid())
+  quizId      String
+  type        QuestionType
+  question    String
+  options     String?      // JSON array para opciones múltiples
+  correctAnswer String     // Respuesta correcta o criterios de evaluación
+  explanation String?      // Explicación de la respuesta
+  points      Int          @default(1)
+  order       Int
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  // Relaciones
+  quiz    Quiz              @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  answers QuizAnswer[]
+
+  @@index([quizId])
+  @@map("quiz_questions")
+}
+
+// Envío de quiz por estudiante
+model QuizSubmission {
+  id          String           @id @default(cuid())
+  quizId      String
+  userId      String
+  score       Float?           // Puntuación obtenida
+  totalPoints Int              // Puntos totales posibles
+  passed      Boolean          @default(false)
+  attempt     Int              // Número de intento
+  startedAt   DateTime         @default(now())
+  completedAt DateTime?
+  timeSpent   Int?             // Tiempo usado en segundos
+
+  // Relaciones
+  quiz    Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  user    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  answers QuizAnswer[]
+
+  @@index([quizId])
+  @@index([userId])
+  @@map("quiz_submissions")
+}
+
+// Respuesta individual a una pregunta
+model QuizAnswer {
+  id           String   @id @default(cuid())
+  submissionId String
+  questionId   String
+  answer       String   // Respuesta del estudiante
+  isCorrect    Boolean?
+  points       Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  // Relaciones
+  submission QuizSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  question   QuizQuestion   @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([submissionId])
+  @@index([questionId])
+  @@map("quiz_answers")
+}
+
+// Ejercicio práctico
+model Exercise {
+  id          String   @id @default(cuid())
+  lessonId    String   @unique
+  title       String
+  description String
+  instructions String  // Instrucciones detalladas
+  startingCode String? // Código inicial para ejercicios de programación
+  solution    String?  // Solución modelo (solo visible para instructores)
+  hints       String?  // JSON array de pistas
+  difficulty  Int      @default(1) // 1-5
+  points      Int      @default(10)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relaciones
+  lesson      Lesson               @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  submissions ExerciseSubmission[]
+
+  @@map("exercises")
+}
+
+// Envío de ejercicio
+model ExerciseSubmission {
+  id         String           @id @default(cuid())
+  exerciseId String
+  userId     String
+  code       String           // Código o respuesta enviada
+  status     SubmissionStatus @default(PENDING)
+  grade      Float?           // Calificación
+  feedback   String?          // Retroalimentación del instructor
+  submittedAt DateTime        @default(now())
+  gradedAt   DateTime?
+
+  // Relaciones
+  exercise Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([exerciseId])
+  @@index([userId])
+  @@map("exercise_submissions")
+}
+
+// Inscripción de estudiante en curso
+model Enrollment {
+  id          String           @id @default(cuid())
+  userId      String
+  courseId    String
+  status      EnrollmentStatus @default(ACTIVE)
+  progress    Float            @default(0) // Porcentaje de progreso 0-100
+  enrolledAt  DateTime         @default(now())
+  completedAt DateTime?
+  lastAccessedAt DateTime?
+
+  // Relaciones
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@index([userId])
+  @@index([courseId])
+  @@map("enrollments")
+}
+
+// Progreso en lecciones
+model Progress {
+  id          String   @id @default(cuid())
+  userId      String
+  lessonId    String
+  completed   Boolean  @default(false)
+  timeSpent   Int      @default(0) // Tiempo en segundos
+  lastPosition Int?    // Última posición en video (segundos)
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relaciones
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonId])
+  @@index([userId])
+  @@index([lessonId])
+  @@map("progress")
+}
+
+// Logros/Achievements
+model Achievement {
+  id          String          @id @default(cuid())
+  name        String          @unique
+  description String
+  icon        String
+  type        AchievementType
+  criteria    String          // JSON con criterios para obtener el logro
+  points      Int             @default(10)
+  createdAt   DateTime        @default(now())
+
+  // Relaciones
+  users UserAchievement[]
+
+  @@map("achievements")
+}
+
+// Logros obtenidos por usuarios
+model UserAchievement {
+  id            String   @id @default(cuid())
+  userId        String
+  achievementId String
+  earnedAt      DateTime @default(now())
+
+  // Relaciones
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId])
+  @@index([userId])
+  @@map("user_achievements")
+}
+
+// Mensajes entre usuarios
+model Message {
+  id        String   @id @default(cuid())
+  subject   String
+  content   String
+  senderId  String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  // Relaciones
+  sender     User               @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  recipients MessageRecipient[]
+
+  @@index([senderId])
+  @@map("messages")
+}
+
+// Destinatarios de mensajes (para soportar mensajes a múltiples usuarios)
+model MessageRecipient {
+  id         String   @id @default(cuid())
+  messageId  String
+  recipientId String
+  isRead     Boolean  @default(false)
+  readAt     DateTime?
+
+  // Relaciones
+  message   Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  recipient User    @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, recipientId])
+  @@index([recipientId])
+  @@map("message_recipients")
+}
+
+// Anuncios del curso
+model Announcement {
+  id        String   @id @default(cuid())
+  courseId  String
+  authorId  String
+  title     String
+  content   String
+  isPinned  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relaciones
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  author User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([courseId])
+  @@map("announcements")
+}
+
+// Comentarios en lecciones
+model Comment {
+  id        String   @id @default(cuid())
+  lessonId  String
+  userId    String
+  content   String
+  parentId  String?  // Para respuestas a comentarios
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relaciones
+  lesson  Lesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent  Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies Comment[] @relation("CommentReplies")
+
+  @@index([lessonId])
+  @@index([userId])
+  @@map("comments")
+}
+
+// Categorías de artículos de investigación
+model ArticleCategory {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  color       String?  // Color hexadecimal para UI
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relaciones
+  articles Article[]
+
+  @@map("article_categories")
+}
+
+// Artículos de investigación - Notebook/Blog estilo Medium
+model Article {
+  id              String   @id @default(cuid())
+  title           String
+  slug            String   @unique
+  subtitle        String?  // Subtítulo opcional
+  excerpt         String   // Resumen breve para listados
+  content         String   @db.Text // Contenido en formato JSON (Tiptap/ProseMirror)
+  coverImage      String?  // URL de imagen de portada
+  authorId        String
+  categoryId      String?
+  published       Boolean  @default(false)
+  featured        Boolean  @default(false) // Para destacar artículos importantes
+  readingTime     Int?     // Tiempo de lectura estimado en minutos
+  views           Int      @default(0) // Contador de vistas
+  publishedAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relaciones
+  author   User              @relation("ArticleAuthor", fields: [authorId], references: [id])
+  category ArticleCategory?  @relation(fields: [categoryId], references: [id])
+  tags     ArticleTag[]
+  footnotes ArticleFootnote[]
+  media    ArticleMedia[]
+
+  @@index([slug])
+  @@index([authorId])
+  @@index([categoryId])
+  @@index([published])
+  @@index([publishedAt])
+  @@map("articles")
+}
+
+// Tags para artículos
+model ArticleTagName {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  slug      String   @unique
+  createdAt DateTime @default(now())
+
+  // Relaciones
+  articles ArticleTag[]
+
+  @@map("article_tag_names")
+}
+
+// Relación muchos a muchos entre artículos y tags
+model ArticleTag {
+  articleId String
+  tagId     String
+  article   Article        @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  tag       ArticleTagName @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([articleId, tagId])
+  @@map("article_tags")
+}
+
+// Notas al pie de página para artículos
+model ArticleFootnote {
+  id        String   @id @default(cuid())
+  articleId String
+  number    Int      // Número de la nota (superíndice)
+  content   String   @db.Text // Contenido de la nota
+  order     Int      // Orden de aparición en el artículo
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relaciones
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@index([articleId])
+  @@map("article_footnotes")
+}
+
+// Media (imágenes, videos) embebidos en artículos
+model ArticleMedia {
+  id          String   @id @default(cuid())
+  articleId   String
+  type        String   // 'image', 'video', 'embed'
+  url         String
+  caption     String?  // Pie de foto/video
+  alt         String?  // Texto alternativo para accesibilidad
+  width       Int?
+  height      Int?
+  order       Int      // Orden de aparición en el artículo
+  createdAt   DateTime @default(now())
+
+  // Relaciones
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@index([articleId])
+  @@map("article_media")
+}
+
+// Blog posts para el área pública (mantenemos por compatibilidad)
+model BlogPost {
+  id          String   @id @default(cuid())
+  title       String
+  slug        String   @unique
+  excerpt     String
+  content     String
+  coverImage  String?
+  published   Boolean  @default(false)
+  publishedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([slug])
+  @@index([published])
+  @@map("blog_posts")
+}

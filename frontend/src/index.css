@@ -1,0 +1,509 @@
+/* =====================================================
+   INSTITUTO SAN MIGUEL - MINIMALIST DESIGN SYSTEM
+   "Language as System, Semantics as Dynamics"
+   Inspired by Claude's interface philosophy
+   ===================================================== */
+
+/* FONT IMPORTS - Inter for clean, intellectual typography */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =====================================================
+   CSS CUSTOM PROPERTIES
+   ===================================================== */
+:root {
+  /* Layout */
+  --header-height: 4rem;
+  --max-width: 1280px;
+
+  /* Minimal color palette */
+  --color-text: #1C1917;
+  --color-text-secondary: #57534E;
+  --color-text-tertiary: #A8A29E;
+  --color-accent: #EA580C;
+  --color-semantic: #6366F1;
+  --color-bg: #FFFFFF;
+  --color-bg-secondary: #FAFAF9;
+  --color-border: #E7E5E4;
+
+  /* Spacing - based on text rhythm */
+  --section-spacing: clamp(3rem, 6vw, 6rem);
+
+  /* Animation */
+  --transition-fast: 150ms;
+  --transition-base: 250ms;
+  --transition-slow: 400ms;
+}
+
+/* =====================================================
+   BASE STYLES - Minimal and Purposeful
+   ===================================================== */
+@layer base {
+  * {
+    @apply border-neutral-200 dark:border-neutral-800;
+  }
+
+  html {
+    @apply scroll-smooth;
+    font-size: 16px;
+  }
+
+  body {
+    @apply bg-white dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 antialiased;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: background-color 200ms, color 200ms;
+  }
+
+  /* Typography - Minimal hierarchy */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Inter', -apple-system, sans-serif;
+    @apply font-semibold text-neutral-900 dark:text-white;
+    text-wrap: balance;
+  }
+
+  h1 {
+    @apply text-4xl md:text-5xl lg:text-6xl;
+    font-weight: 600;
+  }
+
+  h2 {
+    @apply text-3xl md:text-4xl lg:text-5xl;
+    font-weight: 600;
+  }
+
+  h3 {
+    @apply text-2xl md:text-3xl text-neutral-900 dark:text-orange-500;
+    font-weight: 600;
+  }
+
+  h4 {
+    @apply text-xl md:text-2xl;
+    font-weight: 500;
+  }
+
+  h5 {
+    @apply text-lg md:text-xl;
+    font-weight: 500;
+  }
+
+  h6 {
+    @apply text-base md:text-lg;
+    font-weight: 500;
+  }
+
+  /* Body text */
+  p {
+    @apply text-base leading-relaxed text-neutral-700;
+    font-family: 'Inter', -apple-system, sans-serif;
+  }
+
+  .lead {
+    @apply text-lg md:text-xl text-neutral-600;
+  }
+
+  /* Links - subtle underline */
+  a {
+    @apply transition-colors duration-200;
+  }
+
+  /* Focus states - WCAG AAA compliant */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-orange-600 ring-offset-2 ring-offset-white;
+  }
+
+  /* Images */
+  img {
+    @apply max-w-full h-auto;
+  }
+
+  /* Selection */
+  ::selection {
+    @apply bg-orange-100 text-orange-900;
+  }
+
+  ::-moz-selection {
+    @apply bg-orange-100 text-orange-900;
+  }
+}
+
+/* =====================================================
+   COMPONENTS - Minimal, Functional
+   ===================================================== */
+@layer components {
+
+  /* ================ BUTTONS - Minimal Design ================ */
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2
+           font-medium rounded-lg transition-all duration-200
+           focus:outline-none focus:ring-2 focus:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed
+           text-sm;
+  }
+
+  .btn-primary {
+    @apply bg-orange-600 dark:bg-orange-600 text-white dark:text-white
+           border border-orange-600 dark:border-orange-600
+           hover:bg-orange-700 dark:hover:bg-orange-700
+           focus:ring-orange-600 dark:focus:ring-orange-600;
+  }
+
+  .btn-secondary {
+    @apply bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white
+           border border-neutral-300 dark:border-neutral-600
+           hover:bg-neutral-50 dark:hover:bg-neutral-700
+           hover:border-neutral-400 dark:hover:border-neutral-500
+           focus:ring-neutral-400 dark:focus:ring-neutral-500;
+  }
+
+  .btn-accent {
+    @apply bg-orange-600 dark:bg-orange-600
+           text-white dark:text-white
+           border border-orange-600 dark:border-orange-600
+           hover:bg-orange-700 dark:hover:bg-orange-700
+           focus:ring-orange-600 dark:focus:ring-orange-600;
+  }
+
+  .btn-ghost {
+    @apply bg-transparent text-neutral-700 dark:text-neutral-300
+           border border-transparent
+           hover:bg-neutral-100 dark:hover:bg-neutral-800
+           focus:ring-neutral-400 dark:focus:ring-neutral-500;
+  }
+
+  .btn-link {
+    @apply bg-transparent text-neutral-900 dark:text-white border-none
+           hover:text-orange-600 dark:hover:text-orange-500 underline-offset-4
+           focus:ring-0 focus:outline-none hover:underline;
+  }
+
+  /* Button sizes */
+  .btn-sm {
+    @apply px-3 py-1.5 text-xs;
+  }
+
+  .btn-md {
+    @apply px-4 py-2 text-sm;
+  }
+
+  .btn-lg {
+    @apply px-6 py-3 text-base;
+  }
+
+  .btn-xl {
+    @apply px-8 py-4 text-lg;
+  }
+
+  /* ================ INPUTS - Clean and Minimal ================ */
+
+  .input {
+    @apply w-full px-3 py-2 border border-neutral-300 rounded-lg
+           bg-white text-neutral-900
+           focus:outline-none focus:ring-2 focus:ring-orange-600 focus:border-orange-600
+           transition-all duration-200
+           placeholder:text-neutral-400
+           disabled:bg-neutral-100 disabled:cursor-not-allowed;
+  }
+
+  .input-error {
+    @apply border-error focus:ring-error focus:border-error;
+  }
+
+  .label {
+    @apply block text-sm font-medium text-neutral-700 mb-1.5;
+  }
+
+  .form-error {
+    @apply text-sm text-error mt-1;
+  }
+
+  .textarea {
+    @apply input resize-none min-h-[120px];
+  }
+
+  .select {
+    @apply input appearance-none bg-no-repeat cursor-pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+    background-position: right 0.5rem center;
+    background-size: 1.5em 1.5em;
+    padding-right: 2.5rem;
+  }
+
+  /* ================ CARDS - Minimal Elevation ================ */
+
+  .card {
+    @apply bg-white rounded-xl border border-neutral-200
+           transition-all duration-200;
+  }
+
+  .card-hover {
+    @apply card hover:border-neutral-300 hover:shadow-soft;
+  }
+
+  .card-body {
+    @apply p-6 md:p-8;
+  }
+
+  /* ================ BADGES - Minimal Indicators ================ */
+
+  .badge {
+    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full
+           text-xs font-medium;
+  }
+
+  .badge-neutral {
+    @apply bg-neutral-100 text-neutral-700 border border-neutral-200;
+  }
+
+  .badge-accent {
+    @apply bg-orange-50 text-orange-700 border border-orange-200;
+  }
+
+  .badge-semantic {
+    @apply bg-indigo-50 text-indigo-700 border border-indigo-200;
+  }
+
+  /* ================ LAYOUT - White Space is Intellectual ================ */
+
+  .container-custom {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  .container-narrow {
+    @apply max-w-3xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  .container-wide {
+    @apply max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  .section {
+    @apply py-12 md:py-16 lg:py-20;
+  }
+
+  .section-sm {
+    @apply py-8 md:py-12;
+  }
+
+  .section-lg {
+    @apply py-16 md:py-24 lg:py-32;
+  }
+
+  /* ================ NAVIGATION - Minimal Links ================ */
+
+  .nav-link {
+    @apply relative text-neutral-700 font-medium transition-colors duration-200
+           hover:text-neutral-900;
+  }
+
+  .nav-link-underline::after {
+    content: '';
+    @apply absolute bottom-0 left-0 w-0 h-0.5 bg-neutral-900
+           transition-all duration-200;
+  }
+
+  .nav-link-underline:hover::after,
+  .nav-link-underline.active::after {
+    @apply w-full;
+  }
+
+  .nav-link-underline.active {
+    @apply text-neutral-900;
+  }
+
+  /* ================ DIVIDERS ================ */
+
+  .divider {
+    @apply w-full h-px bg-neutral-200;
+  }
+}
+
+/* =====================================================
+   UTILITIES - Text as Visual Element
+   ===================================================== */
+@layer utilities {
+
+  /* Text balance */
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Token animation utilities */
+  .token {
+    @apply inline-block;
+    animation: tokenAppear 0.3s ease-out backwards;
+  }
+
+  .token-1 { animation-delay: 0.05s; }
+  .token-2 { animation-delay: 0.1s; }
+  .token-3 { animation-delay: 0.15s; }
+  .token-4 { animation-delay: 0.2s; }
+  .token-5 { animation-delay: 0.25s; }
+  .token-6 { animation-delay: 0.3s; }
+  .token-7 { animation-delay: 0.35s; }
+  .token-8 { animation-delay: 0.4s; }
+  .token-9 { animation-delay: 0.45s; }
+  .token-10 { animation-delay: 0.5s; }
+
+  /* Stagger delays for elements */
+  .delay-100 { animation-delay: 100ms; }
+  .delay-200 { animation-delay: 200ms; }
+  .delay-300 { animation-delay: 300ms; }
+  .delay-400 { animation-delay: 400ms; }
+  .delay-500 { animation-delay: 500ms; }
+
+  /* Minimal shadows */
+  .shadow-minimal {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  }
+
+  .shadow-soft {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  }
+
+  /* Scrollbar minimal */
+  .scrollbar-minimal {
+    scrollbar-width: thin;
+    scrollbar-color: theme('colors.neutral.300') transparent;
+  }
+
+  .scrollbar-minimal::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scrollbar-minimal::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  .scrollbar-minimal::-webkit-scrollbar-thumb {
+    @apply bg-neutral-300 rounded-full;
+  }
+
+  .scrollbar-minimal::-webkit-scrollbar-thumb:hover {
+    @apply bg-neutral-400;
+  }
+}
+
+/* =====================================================
+   TOKEN-BASED ANIMATIONS
+   Text appearing, transforming, flowing
+   ===================================================== */
+
+/* Reveal animation for elements */
+.reveal {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.4s ease-out, transform 0.4s ease-out;
+}
+
+.reveal.revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Fade reveal */
+.fade-reveal {
+  opacity: 0;
+  transition: opacity 0.6s ease-out;
+}
+
+.fade-reveal.revealed {
+  opacity: 1;
+}
+
+/* Semantic word transformation */
+.semantic-word {
+  @apply inline-block;
+  position: relative;
+}
+
+.semantic-word.transforming {
+  animation: semanticShift 0.5s ease-in-out;
+}
+
+/* =====================================================
+   PAGE TRANSITIONS - Minimal Motion
+   ===================================================== */
+
+.page-transition-enter {
+  opacity: 0;
+}
+
+.page-transition-enter-active {
+  opacity: 1;
+  transition: opacity 300ms ease-out;
+}
+
+.page-transition-exit {
+  opacity: 1;
+}
+
+.page-transition-exit-active {
+  opacity: 0;
+  transition: opacity 200ms ease-in;
+}
+
+/* =====================================================
+   ACCESSIBILITY - Reduced Motion
+   ===================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .reveal,
+  .fade-reveal,
+  .token,
+  .semantic-word {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
+/* =====================================================
+   RESPONSIVE - Mobile First
+   ===================================================== */
+
+/* Hide on mobile */
+@media (max-width: 767px) {
+  .hide-mobile {
+    display: none !important;
+  }
+}
+
+/* Show only on mobile */
+@media (min-width: 768px) {
+  .show-mobile {
+    display: none !important;
+  }
+}
+
+/* =====================================================
+   PRINT STYLES
+   ===================================================== */
+
+@media print {
+  body {
+    @apply bg-white text-black;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  a[href]::after {
+    content: " (" attr(href) ")";
+  }
+}
