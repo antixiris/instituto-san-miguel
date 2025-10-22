@@ -435,16 +435,94 @@ npm run dev  # Puerto 5174
 ### 🔄 En Desarrollo
 *Ninguna tarea pendiente en este momento*
 
-### 📋 Próximas Funcionalidades Sugeridas
+### 📋 Próximas Funcionalidades Sugeridas (Actualizado 22 Oct 2025)
+
+#### 🔴 Prioridad Alta - Sistema de Pagos
+- **Pasarela de pago con PayPal**
+  - Integración PayPal SDK
+  - Proceso de checkout para cursos
+  - Confirmación de pago y activación de acceso
+  - Gestión de reembolsos
+  - Dashboard de transacciones
+
+#### 🟠 Prioridad Alta - Panel de Administración
+- **Vista global de administrador**
+  - Dashboard con métricas clave (usuarios, cursos, ingresos)
+  - Gestión completa de usuarios (CRUD)
+  - Estadísticas de inscripciones y conversión
+  - Sistema de reportes
+  - Configuración global de la plataforma
+
+- **Gestión de cursos para administradores**
+  - Creación de cursos con editor visual
+  - Gestión de módulos y lecciones
+  - Carga de contenido multimedia
+  - Publicación y despublicación
+  - Asignación de instructores
+
+#### 🟡 Prioridad Media - Panel del Profesor (cambiar rol INSTRUCTOR → PROFESOR)
+- **Renombrado de rol en todo el sistema**
+  - Schema Prisma: `INSTRUCTOR` → `PROFESOR`
+  - Frontend: todas las referencias
+  - Backend: controladores y servicios
+
+- **Gestión académica**
+  - Vista de cursos asignados
+  - Creación y edición de contenido
+  - Editor de lecciones (texto, video, ejercicios)
+
+- **Evaluación y seguimiento**
+  - Lista de alumnos por curso
+  - Progreso individual de cada alumno
+  - Calificación de ejercicios y exámenes
+  - Estadísticas de rendimiento del curso
+  - Identificación de alumnos en riesgo
+
+- **Sistema de tickets de consulta**
+  - Bandeja de entrada de consultas
+  - Respuesta a tickets
+  - Historial de comunicación por alumno
+  - Categorización de consultas
+  - Tiempos de respuesta
+
+#### 🟢 Prioridad Media - Panel del Alumno
+- **Área de aprendizaje**
+  - Vista de cursos matriculados
+  - Reproductor de lecciones
+  - Navegación entre módulos
+  - Marcado de lecciones completadas
+  - Notas personales por lección
+
+- **Seguimiento de progreso**
+  - Barra de progreso por curso
+  - Estadísticas de tiempo dedicado
+  - Historial de actividad
+  - Certificado al completar (descargable PDF)
+
+- **Ejercicios y evaluaciones**
+  - Cuestionarios interactivos
+  - Ejercicios prácticos
+  - Pruebas finales por módulo
+  - Examen final de certificación
+  - Revisión de respuestas y feedback
+
+- **Comunicación con el profesor**
+  - Crear ticket de consulta
+  - Adjuntar archivos/capturas
+  - Ver estado de tickets (pendiente, respondido, cerrado)
+  - Historial de conversaciones
+  - Notificaciones de respuesta
+
+#### 🔵 Prioridad Baja - Otras Mejoras
 - Sistema de comentarios en artículos
 - Editor WYSIWYG para crear artículos (Tiptap/ProseMirror)
-- Búsqueda full-text en artículos
+- Búsqueda full-text en artículos y cursos
 - Sistema de favoritos/bookmarks
 - Newsletter/suscripciones
-- Analytics de artículos
-- Sistema de certificados para cursos
-- Pagos integrados (Stripe)
+- Analytics avanzado de artículos
 - Foro de discusión
+- Sistema de insignias y gamificación
+- App móvil (React Native)
 
 ---
 
@@ -588,6 +666,191 @@ export default function MyComponent({ title }: Props) {
 
 ---
 
+## 🔄 Sesión 22 Oct 2025 - Curso "Especialista en Desarrollo con Claude Code"
+
+### Trabajo Realizado
+
+#### 1. Creación del Curso Claude Code
+**Script:** `/backend/prisma/seed-claude-code-course.ts`
+- Curso completo: "Especialista en Desarrollo con Claude Code"
+- 8 módulos técnicos progresivos
+- 43 lecciones distribuidas
+- Duración: 45 horas
+- Precio: 199€
+- Categoría: Inteligencia Artificial
+- Estado: PUBLISHED y FEATURED
+
+#### 2. Mejoras de Diseño en CourseDetailPage.tsx
+**Archivo:** `/frontend/src/pages/public/CourseDetailPage.tsx`
+
+**Cambios importantes:**
+- **Línea 29:** Badge "De principiante a experto" (reemplazó `course.level` dinámico)
+- **Línea 57:** H1 title con color responsive: `text-white lg:text-orange-500`
+- **Líneas 143-152:** Contador de alumnos con offset +244
+- **Línea 149:** Label "Alumnos" (antes "Estudiantes")
+- **Líneas 194-196:** Precio visible en naranja: `text-orange-600 dark:text-orange-500`
+- **Líneas 207-229:** Características del curso sin SVG pattern vacío
+- **Líneas 247-256:** Descripción con mejor contraste dark mode: `dark:text-neutral-300`
+- **Líneas 353-365:** Avatar del profesor con fallback a iniciales
+- **Línea 350:** "Profesor" (antes "Instructor")
+- **Línea 363:** Título "Director"
+- **Línea 368:** Bio con colores unificados: `text-neutral-700`
+
+**Decisiones de diseño:**
+- Unificación de colores de textos explicativos (mismo color light/dark para consistencia)
+- Mejora de contraste para textos secundarios en dark mode
+- Eliminación de elementos decorativos vacíos (SVG patterns)
+- H1 responsive: blanco en mobile, naranja en desktop (light mode)
+
+#### 3. Mejoras en CoursesPage.tsx
+**Archivo:** `/frontend/src/pages/public/CoursesPage.tsx`
+
+**Cambios:**
+- **Línea 178:** Texto "alumnos" con offset +244: `{(course._count.enrollments || 0) + 244} alumnos`
+
+#### 4. Actualización de Datos del Instructor
+**Scripts ejecutados:**
+- Actualización de precio del curso a 199€
+- Descripción profesional del curso (600+ palabras técnicas)
+- Instructor: Raúl Alonso
+- Título: Director
+- Bio: "Experto en programación con tecnologías Web por el Departamento de Computación e Inteligencia Artificial de la Universidad de Alicante. Especialista Universitario en Marketing Digital así como Especialista en Inteligencia Artificial aplicados al sector editorial, ambos por la Universidad Europea Miguel de Cervantes."
+- Avatar: `/avatars/raulalonso.png`
+
+**Archivo creado:** `/frontend/public/avatars/raulalonso.png` (95KB)
+
+#### 5. Sistema de Contador de Alumnos
+**Decisión técnica:** Offset en frontend vs registros ficticios en BD
+
+**Implementación elegida:** Offset de +244 en el frontend
+```typescript
+{(course._count.enrollments || 0) + 244}
+```
+
+**Razones:**
+- Evita restricciones de unicidad userId+courseId
+- Más simple y performante
+- Se incrementa automáticamente con inscripciones reales
+- No contamina la BD con datos ficticios
+
+**Funcionamiento:**
+- Estado actual: 0 enrollments reales → muestra 244
+- Con 1 inscripción real → muestra 245
+- Con n inscripciones → muestra 244 + n
+
+### Archivos Modificados
+
+#### Frontend
+```
+src/pages/public/CourseDetailPage.tsx
+├── Línea 29: Badge estático "De principiante a experto"
+├── Línea 57: H1 responsive color
+├── Líneas 143-152: Contador alumnos con offset
+├── Línea 194-196: Precio en naranja
+├── Líneas 247-256: Descripción con mejor contraste
+├── Líneas 353-365: Avatar profesor con fallback
+└── Líneas 368-370: Bio profesor
+
+src/pages/public/CoursesPage.tsx
+└── Línea 178: Contador alumnos con offset
+
+public/avatars/raulalonso.png (NUEVO)
+```
+
+#### Backend (Base de Datos)
+```sql
+-- Curso actualizado
+UPDATE courses SET
+  price = 199,
+  description = '600+ palabras técnicas profesionales',
+  shortDescription = 'Programa técnico avanzado...'
+WHERE slug = 'especialista-claude-code';
+
+-- Instructor actualizado
+UPDATE users SET
+  firstName = 'Raúl',
+  lastName = 'Alonso',
+  avatar = '/avatars/raulalonso.png',
+  bio = 'Experto en programación...'
+WHERE id = '[instructor_id]';
+```
+
+### Problemas Resueltos
+
+#### 1. Login "No Ocurre Nada"
+**Diagnóstico:**
+- Backend funcionando correctamente (puerto 3001)
+- Frontend funcionando correctamente (puerto 5174)
+- Login SÍ funcionaba - navegación exitosa a `/campus`
+- Errores en consola eran de extensiones de Chrome (password managers)
+
+**Credenciales correctas:**
+```
+Admin: admin@institutosanmiguel.com / Admin123!
+Instructor (Carlos): instructor@institutosanmiguel.com / Instructor123!
+Instructor (Raúl): instructor@instituto-sanmiguel.es / ClaudeCode2025!
+Estudiante: estudiante@institutosanmiguel.com / Estudiante123!
+```
+
+#### 2. Contraste de Textos en Dark Mode
+**Problema:** Textos secundarios muy claros, difíciles de leer.
+
+**Solución:**
+- Descripción y objetivos: `text-neutral-700 dark:text-neutral-300`
+- Otros textos explicativos: eliminadas variantes dark para consistencia
+- Balance entre legibilidad y diseño minimalista
+
+#### 3. H1 No Visible en Light Mode
+**Problema:** Título negro sobre fondo oscuro del hero.
+
+**Solución:** Color responsive
+```tsx
+className="text-white lg:text-orange-500"
+```
+- Mobile: blanco (sobre hero oscuro)
+- Desktop: naranja (mejor visibilidad en light mode)
+
+#### 4. Precio No Legible
+**Problema:** Texto "GRATIS" blanco sobre fondo blanco.
+
+**Solución:**
+```tsx
+className="text-orange-600 dark:text-orange-500"
+```
+
+### Decisiones Técnicas Importantes
+
+1. **Avatar con Fallback Graceful**
+```tsx
+{course.instructor.avatar ? (
+  <img src={course.instructor.avatar} className="w-20 h-20 rounded-full" />
+) : (
+  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-orange-500">
+    {initials}
+  </div>
+)}
+```
+
+2. **Offset de Contador vs Datos Ficticios**
+- Elegido: Offset en frontend (+244)
+- Rechazado: Crear 244 enrollments ficticios (problema de unicidad)
+
+3. **Colores Unificados para Textos Explicativos**
+- Mismo color en light y dark mode
+- Mejor coherencia visual
+- Excepciones: Descripción y Objetivos (requieren mayor contraste en dark)
+
+### Estado de Credenciales
+
+#### Usuarios de Sistema
+```
+✅ Admin: admin@institutosanmiguel.com / Admin123!
+✅ Instructor Original: instructor@institutosanmiguel.com / Instructor123!
+✅ Instructor Raúl: instructor@instituto-sanmiguel.es / ClaudeCode2025!
+✅ Estudiante: estudiante@institutosanmiguel.com / Estudiante123!
+✅ Investigador: investigador@instituto-sanmiguel.es / password123
+```
+
 ## 🔄 Última Sesión (21 Oct 2025)
 
 ### Trabajo Realizado
@@ -627,6 +890,6 @@ export default function MyComponent({ title }: Props) {
 
 ---
 
-**Última actualización:** 21 de Octubre de 2025
-**Versión:** 1.0.0
+**Última actualización:** 22 de Octubre de 2025
+**Versión:** 1.1.0 - Curso Claude Code implementado
 **Estado:** En desarrollo activo
