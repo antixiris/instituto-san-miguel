@@ -37,11 +37,11 @@ router.get('/:slug', optionalAuthenticate, getCourseBySlug);
 router.get('/my/enrollments', authenticate, getMyCourses);
 router.post('/:id/enroll', authenticate, enrollInCourse);
 
-// Rutas protegidas - instructores y admin
+// Rutas protegidas - profesores y admin
 router.post(
   '/',
   authenticate,
-  authorize(UserRole.INSTRUCTOR, UserRole.ADMIN),
+  authorize(UserRole.PROFESOR, UserRole.ADMIN),
   validateRequest(createCourseValidation),
   createCourse
 );
@@ -49,7 +49,7 @@ router.post(
 router.put(
   '/:id',
   authenticate,
-  authorize(UserRole.INSTRUCTOR, UserRole.ADMIN),
+  authorize(UserRole.PROFESOR, UserRole.ADMIN),
   validateRequest(updateCourseValidation),
   updateCourse
 );
@@ -57,7 +57,7 @@ router.put(
 router.delete(
   '/:id',
   authenticate,
-  authorize(UserRole.INSTRUCTOR, UserRole.ADMIN),
+  authorize(UserRole.PROFESOR, UserRole.ADMIN),
   deleteCourse
 );
 

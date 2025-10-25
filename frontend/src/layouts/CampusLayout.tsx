@@ -7,11 +7,11 @@ export default function CampusLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950">
       <CampusNavbar onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
       <div className="flex">
         <CampusSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-        <main className="flex-1 p-6 lg:ml-64">
+        <main className="flex-1 p-6 lg:ml-64 transition-colors">
           <div className="max-w-7xl mx-auto">
             <Outlet />
           </div>

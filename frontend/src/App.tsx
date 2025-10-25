@@ -23,6 +23,15 @@ import MyCoursesPage from './pages/campus/MyCoursesPage';
 import CourseLearningPage from './pages/campus/CourseLearningPage';
 import ProfilePage from './pages/campus/ProfilePage';
 
+// Admin Pages
+import AdminDashboard from './pages/campus/admin/Dashboard';
+import CoursesManagement from './pages/campus/admin/CoursesManagement';
+import CourseContentManagement from './pages/campus/admin/CourseContentManagement';
+import UsersManagement from './pages/campus/admin/UsersManagement';
+import ArticlesManagement from './pages/campus/admin/ArticlesManagement';
+import TicketsManagement from './pages/campus/admin/TicketsManagement';
+import Statistics from './pages/campus/admin/Statistics';
+
 // Protected Route Component
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -56,7 +65,19 @@ function App() {
           </ProtectedRoute>
         }
       >
+        {/* Dashboard por defecto */}
         <Route path="/campus" element={<DashboardPage />} />
+
+        {/* Rutas de Admin */}
+        <Route path="/campus/admin" element={<AdminDashboard />} />
+        <Route path="/campus/admin/cursos" element={<CoursesManagement />} />
+        <Route path="/campus/admin/cursos/:courseId/contenidos" element={<CourseContentManagement />} />
+        <Route path="/campus/admin/usuarios" element={<UsersManagement />} />
+        <Route path="/campus/admin/articulos" element={<ArticlesManagement />} />
+        <Route path="/campus/admin/tickets" element={<TicketsManagement />} />
+        <Route path="/campus/admin/estadisticas" element={<Statistics />} />
+
+        {/* Rutas generales del campus */}
         <Route path="/campus/mis-cursos" element={<MyCoursesPage />} />
         <Route path="/campus/curso/:courseId" element={<CourseLearningPage />} />
         <Route path="/campus/perfil" element={<ProfilePage />} />

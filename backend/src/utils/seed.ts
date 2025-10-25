@@ -34,7 +34,7 @@ async function main() {
       password: instructorPassword,
       firstName: 'Carlos',
       lastName: 'Martínez',
-      role: UserRole.INSTRUCTOR,
+      role: UserRole.PROFESOR,
       bio: 'Instructor con 10 años de experiencia en desarrollo web y programación.',
       isActive: true,
       emailVerified: true,

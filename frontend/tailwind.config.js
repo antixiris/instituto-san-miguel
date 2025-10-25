@@ -180,6 +180,9 @@ export default {
           '0%, 100%': { opacity: '1' },
           '50%': { opacity: '0.8' },
         },
+        shimmer: {
+          '100%': { transform: 'translateX(100%)' },
+        },
       },
 
       transitionDuration: {

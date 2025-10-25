@@ -13,6 +13,14 @@ dotenv.config();
 import authRoutes from './routes/auth.routes';
 import coursesRoutes from './routes/courses.routes';
 import articlesRoutes from './routes/articles.routes';
+import ticketsRoutes from './routes/tickets.routes';
+import usersRoutes from './routes/users.routes';
+import analyticsRoutes from './routes/analytics.routes';
+import categoriesRoutes from './routes/categories.routes';
+import modulesRoutes from './routes/modules.routes';
+import gameExercisesRoutes from './routes/gameExercises.routes';
+import moduleTestsRoutes from './routes/moduleTests.routes';
+import gradesRoutes from './routes/grades.routes';
 
 // Importar middleware
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
@@ -69,6 +77,14 @@ app.get('/health', (_req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/courses', coursesRoutes);
 app.use('/api/articles', articlesRoutes);
+app.use('/api/categories', categoriesRoutes);
+app.use('/api', modulesRoutes); // Incluye rutas de módulos y lecciones
+app.use('/api', gameExercisesRoutes); // Ejercicios gamificados
+app.use('/api', moduleTestsRoutes); // Tests de módulo
+app.use('/api', gradesRoutes); // Calificaciones y progreso
+app.use('/api/tickets', ticketsRoutes);
+app.use('/api/users', usersRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 // Middleware de error 404
 app.use(notFoundHandler);

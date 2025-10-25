@@ -39,11 +39,11 @@ router.get('/:slug', optionalAuthenticate, getArticleBySlug);
 // Rutas protegidas - obtener mis artículos
 router.get('/my/articles', authenticate, getMyArticles);
 
-// Rutas protegidas - creación, edición y eliminación (instructores y admins)
+// Rutas protegidas - creación, edición y eliminación (profesores y admins)
 router.post(
   '/',
   authenticate,
-  authorize(UserRole.INSTRUCTOR, UserRole.ADMIN),
+  authorize(UserRole.PROFESOR, UserRole.ADMIN),
   validateRequest(createArticleValidation),
   createArticle
 );
@@ -51,7 +51,7 @@ router.post(
 router.put(
   '/:id',
   authenticate,
-  authorize(UserRole.INSTRUCTOR, UserRole.ADMIN),
+  authorize(UserRole.PROFESOR, UserRole.ADMIN),
   validateRequest(updateArticleValidation),
   updateArticle
 );
@@ -59,7 +59,7 @@ router.put(
 router.delete(
   '/:id',
   authenticate,
-  authorize(UserRole.INSTRUCTOR, UserRole.ADMIN),
+  authorize(UserRole.PROFESOR, UserRole.ADMIN),
   deleteArticle
 );
 

@@ -29,7 +29,7 @@ export async function getAllArticles(req: AuthRequest, res: Response, next: Next
     const where: any = {};
 
     // Solo mostrar artículos publicados para usuarios no autenticados o sin permisos
-    if (!req.user || (req.user.role !== UserRole.ADMIN && req.user.role !== UserRole.INSTRUCTOR)) {
+    if (!req.user || (req.user.role !== UserRole.ADMIN && req.user.role !== UserRole.PROFESOR)) {
       where.published = true;
     }
 
@@ -189,7 +189,7 @@ export async function getArticleBySlug(req: AuthRequest, res: Response, next: Ne
       !article.published &&
       (!req.user ||
         (req.user.role !== UserRole.ADMIN &&
-         req.user.role !== UserRole.INSTRUCTOR &&
+         req.user.role !== UserRole.PROFESOR &&
          req.user.id !== article.authorId))
     ) {
       throw new NotFoundError('Artículo no encontrado');

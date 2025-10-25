@@ -37,7 +37,7 @@ export const authService = {
 
   // Guardar tokens en localStorage
   saveTokens(accessToken: string, refreshToken: string): void {
-    localStorage.setItem('accessToken', accessToken);
+    localStorage.setItem('token', accessToken);
     localStorage.setItem('refreshToken', refreshToken);
   },
 
@@ -59,13 +59,13 @@ export const authService = {
 
   // Logout
   logout(): void {
-    localStorage.removeItem('accessToken');
+    localStorage.removeItem('token');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
   },
 
   // Verificar si está autenticado
   isAuthenticated(): boolean {
-    return !!localStorage.getItem('accessToken');
+    return !!localStorage.getItem('token');
   },
 };

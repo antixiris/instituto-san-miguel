@@ -12,7 +12,7 @@ datasource db {
 // Enums
 enum UserRole {
   STUDENT
-  INSTRUCTOR
+  PROFESOR
   ADMIN
 }
 
@@ -52,6 +52,15 @@ enum QuestionType {
   CODE
 }
 
+enum GameExerciseType {
+  MULTIPLE_CHOICE // Selección múltiple gamificada
+  TRUE_FALSE // Verdadero/Falso
+  FILL_BLANKS // Completar espacios
+  MATCHING_PAIRS // Emparejar conceptos
+  SEQUENCE_ORDER // Ordenar en secuencia
+  CODE_CHALLENGE // Desafío de código
+}
+
 enum SubmissionStatus {
   PENDING
   GRADED
@@ -65,6 +74,26 @@ enum AchievementType {
   STREAK
   EARLY_BIRD
   HELPER
+}
+
+enum TicketType {
+  DIRECTOR // Ticket dirigido al administrador/director
+  GENERAL // Tablón de anuncios general (todos los usuarios)
+  PROFESOR // Consulta al profesor del curso
+  CLASE // Tablón de anuncios de la clase (compañeros del curso)
+}
+
+enum TicketStatus {
+  ABIERTO
+  RESPONDIDO
+  CERRADO
+}
+
+enum TicketPriority {
+  BAJA
+  MEDIA
+  ALTA
+  URGENTE
 }
 
 // Models
@@ -86,17 +115,22 @@ model User {
   updatedAt     DateTime @updatedAt
 
   // Relaciones
-  enrollments        Enrollment[]
-  coursesInstructed  Course[]              @relation("CourseInstructor")
-  submissions        QuizSubmission[]
-  exerciseSubmissions ExerciseSubmission[]
-  achievements       UserAchievement[]
-  messages           Message[]
-  messageRecipients  MessageRecipient[]
-  announcements      Announcement[]
-  comments           Comment[]
-  progressRecords    Progress[]
-  articles           Article[]             @relation("ArticleAuthor")
+  enrollments             Enrollment[]
+  coursesInstructed       Course[]                 @relation("CourseInstructor")
+  submissions             QuizSubmission[]
+  exerciseSubmissions     ExerciseSubmission[]
+  achievements            UserAchievement[]
+  messages                Message[]
+  messageRecipients       MessageRecipient[]
+  announcements           Announcement[]
+  comments                Comment[]
+  progressRecords         Progress[]
+  articles                Article[]                @relation("ArticleAuthor")
+  ticketsCreated          Ticket[]                 @relation("TicketCreator")
+  ticketResponses         TicketResponse[]
+  gameExerciseSubmissions GameExerciseSubmission[]
+  moduleTestSubmissions   ModuleTestSubmission[]
+  gradeRecords            GradeRecord[]
 
   @@index([email])
   @@index([role])
@@ -105,33 +139,35 @@ model User {
 
 // Curso - Información del curso
 model Course {
-  id              String       @id @default(cuid())
-  title           String
-  slug            String       @unique
-  description     String
+  id               String       @id @default(cuid())
+  title            String
+  slug             String       @unique
+  description      String
   shortDescription String?
-  thumbnail       String?
-  level           CourseLevel  @default(BEGINNER)
-  status          CourseStatus @default(DRAFT)
-  price           Float        @default(0)
-  duration        Int?         // Duración estimada en horas
-  prerequisites   String?      // JSON array de prerequisitos
-  learningGoals   String?      // JSON array de objetivos
-  instructorId    String
-  categoryId      String?
-  featured        Boolean      @default(false)
-  published       Boolean      @default(false)
-  publishedAt     DateTime?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  thumbnail        String?
+  level            CourseLevel  @default(BEGINNER)
+  status           CourseStatus @default(DRAFT)
+  price            Float        @default(0)
+  duration         Int? // Duración estimada en horas
+  prerequisites    String? // JSON array de prerequisitos
+  learningGoals    String? // JSON array de objetivos
+  instructorId     String
+  categoryId       String?
+  featured         Boolean      @default(false)
+  published        Boolean      @default(false)
+  publishedAt      DateTime?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 
   // Relaciones
-  instructor   User         @relation("CourseInstructor", fields: [instructorId], references: [id])
-  category     Category?    @relation(fields: [categoryId], references: [id])
-  modules      Module[]
-  enrollments  Enrollment[]
+  instructor    User           @relation("CourseInstructor", fields: [instructorId], references: [id])
+  category      Category?      @relation(fields: [categoryId], references: [id])
+  modules       Module[]
+  enrollments   Enrollment[]
   announcements Announcement[]
-  tags         CourseTag[]
+  tags          CourseTag[]
+  tickets       Ticket[]
+  gradeRecords  GradeRecord[]
 
   @@index([slug])
   @@index([instructorId])
@@ -194,8 +230,9 @@ model Module {
   updatedAt   DateTime @updatedAt
 
   // Relaciones
-  course  Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  lessons Lesson[]
+  course     Course      @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons    Lesson[]
+  moduleTest ModuleTest?
 
   @@index([courseId])
   @@map("modules")
@@ -203,27 +240,28 @@ model Module {
 
 // Lección dentro de un módulo
 model Lesson {
-  id          String     @id @default(cuid())
-  title       String
-  description String?
-  type        LessonType
-  content     String?    // Contenido textual o JSON
-  videoUrl    String?    // URL del video (Vimeo/YouTube)
-  videoDuration Int?     // Duración en segundos
-  resources   String?    // JSON array de recursos descargables
-  order       Int
-  moduleId    String
-  isPublished Boolean    @default(false)
-  isFree      Boolean    @default(false) // Para preview gratuito
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  id            String     @id @default(cuid())
+  title         String
+  description   String?
+  type          LessonType
+  content       String? // Contenido textual o JSON
+  videoUrl      String? // URL del video (Vimeo/YouTube)
+  videoDuration Int? // Duración en segundos
+  resources     String? // JSON array de recursos descargables
+  order         Int
+  moduleId      String
+  isPublished   Boolean    @default(false)
+  isFree        Boolean    @default(false) // Para preview gratuito
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
 
   // Relaciones
-  module     Module     @relation(fields: [moduleId], references: [id], onDelete: Cascade)
-  quiz       Quiz?
-  exercise   Exercise?
-  progress   Progress[]
-  comments   Comment[]
+  module       Module        @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  quiz         Quiz?
+  exercise     Exercise?
+  gameExercise GameExercise?
+  progress     Progress[]
+  comments     Comment[]
 
   @@index([moduleId])
   @@map("lessons")
@@ -231,17 +269,17 @@ model Lesson {
 
 // Quiz/Cuestionario
 model Quiz {
-  id            String   @id @default(cuid())
-  lessonId      String   @unique
-  title         String
-  description   String?
-  timeLimit     Int?     // Tiempo límite en minutos
-  passingScore  Int      @default(70) // Porcentaje necesario para aprobar
-  maxAttempts   Int?     // Número máximo de intentos
-  shuffleQuestions Boolean @default(false)
-  showResults   Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id               String   @id @default(cuid())
+  lessonId         String   @unique
+  title            String
+  description      String?
+  timeLimit        Int? // Tiempo límite en minutos
+  passingScore     Int      @default(70) // Porcentaje necesario para aprobar
+  maxAttempts      Int? // Número máximo de intentos
+  shuffleQuestions Boolean  @default(false)
+  showResults      Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   // Relaciones
   lesson      Lesson           @relation(fields: [lessonId], references: [id], onDelete: Cascade)
@@ -253,20 +291,20 @@ model Quiz {
 
 // Pregunta de quiz
 model QuizQuestion {
-  id          String       @id @default(cuid())
-  quizId      String
-  type        QuestionType
-  question    String
-  options     String?      // JSON array para opciones múltiples
-  correctAnswer String     // Respuesta correcta o criterios de evaluación
-  explanation String?      // Explicación de la respuesta
-  points      Int          @default(1)
-  order       Int
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  id            String       @id @default(cuid())
+  quizId        String
+  type          QuestionType
+  question      String
+  options       String? // JSON array para opciones múltiples
+  correctAnswer String // Respuesta correcta o criterios de evaluación
+  explanation   String? // Explicación de la respuesta
+  points        Int          @default(1)
+  order         Int
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 
   // Relaciones
-  quiz    Quiz              @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  quiz    Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
   answers QuizAnswer[]
 
   @@index([quizId])
@@ -275,16 +313,16 @@ model QuizQuestion {
 
 // Envío de quiz por estudiante
 model QuizSubmission {
-  id          String           @id @default(cuid())
+  id          String    @id @default(cuid())
   quizId      String
   userId      String
-  score       Float?           // Puntuación obtenida
-  totalPoints Int              // Puntos totales posibles
-  passed      Boolean          @default(false)
-  attempt     Int              // Número de intento
-  startedAt   DateTime         @default(now())
+  score       Float? // Puntuación obtenida
+  totalPoints Int // Puntos totales posibles
+  passed      Boolean   @default(false)
+  attempt     Int // Número de intento
+  startedAt   DateTime  @default(now())
   completedAt DateTime?
-  timeSpent   Int?             // Tiempo usado en segundos
+  timeSpent   Int? // Tiempo usado en segundos
 
   // Relaciones
   quiz    Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
@@ -301,7 +339,7 @@ model QuizAnswer {
   id           String   @id @default(cuid())
   submissionId String
   questionId   String
-  answer       String   // Respuesta del estudiante
+  answer       String // Respuesta del estudiante
   isCorrect    Boolean?
   points       Int      @default(0)
   createdAt    DateTime @default(now())
@@ -317,18 +355,18 @@ model QuizAnswer {
 
 // Ejercicio práctico
 model Exercise {
-  id          String   @id @default(cuid())
-  lessonId    String   @unique
-  title       String
-  description String
-  instructions String  // Instrucciones detalladas
+  id           String   @id @default(cuid())
+  lessonId     String   @unique
+  title        String
+  description  String
+  instructions String // Instrucciones detalladas
   startingCode String? // Código inicial para ejercicios de programación
-  solution    String?  // Solución modelo (solo visible para instructores)
-  hints       String?  // JSON array de pistas
-  difficulty  Int      @default(1) // 1-5
-  points      Int      @default(10)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  solution     String? // Solución modelo (solo visible para instructores)
+  hints        String? // JSON array de pistas
+  difficulty   Int      @default(1) // 1-5
+  points       Int      @default(10)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   // Relaciones
   lesson      Lesson               @relation(fields: [lessonId], references: [id], onDelete: Cascade)
@@ -339,15 +377,15 @@ model Exercise {
 
 // Envío de ejercicio
 model ExerciseSubmission {
-  id         String           @id @default(cuid())
-  exerciseId String
-  userId     String
-  code       String           // Código o respuesta enviada
-  status     SubmissionStatus @default(PENDING)
-  grade      Float?           // Calificación
-  feedback   String?          // Retroalimentación del instructor
-  submittedAt DateTime        @default(now())
-  gradedAt   DateTime?
+  id          String           @id @default(cuid())
+  exerciseId  String
+  userId      String
+  code        String // Código o respuesta enviada
+  status      SubmissionStatus @default(PENDING)
+  grade       Float? // Calificación
+  feedback    String? // Retroalimentación del instructor
+  submittedAt DateTime         @default(now())
+  gradedAt    DateTime?
 
   // Relaciones
   exercise Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
@@ -360,13 +398,13 @@ model ExerciseSubmission {
 
 // Inscripción de estudiante en curso
 model Enrollment {
-  id          String           @id @default(cuid())
-  userId      String
-  courseId    String
-  status      EnrollmentStatus @default(ACTIVE)
-  progress    Float            @default(0) // Porcentaje de progreso 0-100
-  enrolledAt  DateTime         @default(now())
-  completedAt DateTime?
+  id             String           @id @default(cuid())
+  userId         String
+  courseId       String
+  status         EnrollmentStatus @default(ACTIVE)
+  progress       Float            @default(0) // Porcentaje de progreso 0-100
+  enrolledAt     DateTime         @default(now())
+  completedAt    DateTime?
   lastAccessedAt DateTime?
 
   // Relaciones
@@ -381,15 +419,15 @@ model Enrollment {
 
 // Progreso en lecciones
 model Progress {
-  id          String   @id @default(cuid())
-  userId      String
-  lessonId    String
-  completed   Boolean  @default(false)
-  timeSpent   Int      @default(0) // Tiempo en segundos
-  lastPosition Int?    // Última posición en video (segundos)
-  completedAt DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String    @id @default(cuid())
+  userId       String
+  lessonId     String
+  completed    Boolean   @default(false)
+  timeSpent    Int       @default(0) // Tiempo en segundos
+  lastPosition Int? // Última posición en video (segundos)
+  completedAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   // Relaciones
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -408,7 +446,7 @@ model Achievement {
   description String
   icon        String
   type        AchievementType
-  criteria    String          // JSON con criterios para obtener el logro
+  criteria    String // JSON con criterios para obtener el logro
   points      Int             @default(10)
   createdAt   DateTime        @default(now())
 
@@ -453,11 +491,11 @@ model Message {
 
 // Destinatarios de mensajes (para soportar mensajes a múltiples usuarios)
 model MessageRecipient {
-  id         String   @id @default(cuid())
-  messageId  String
+  id          String    @id @default(cuid())
+  messageId   String
   recipientId String
-  isRead     Boolean  @default(false)
-  readAt     DateTime?
+  isRead      Boolean   @default(false)
+  readAt      DateTime?
 
   // Relaciones
   message   Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
@@ -493,7 +531,7 @@ model Comment {
   lessonId  String
   userId    String
   content   String
-  parentId  String?  // Para respuestas a comentarios
+  parentId  String? // Para respuestas a comentarios
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -514,7 +552,7 @@ model ArticleCategory {
   name        String   @unique
   slug        String   @unique
   description String?
-  color       String?  // Color hexadecimal para UI
+  color       String? // Color hexadecimal para UI
   order       Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -527,29 +565,29 @@ model ArticleCategory {
 
 // Artículos de investigación - Notebook/Blog estilo Medium
 model Article {
-  id              String   @id @default(cuid())
-  title           String
-  slug            String   @unique
-  subtitle        String?  // Subtítulo opcional
-  excerpt         String   // Resumen breve para listados
-  content         String   @db.Text // Contenido en formato JSON (Tiptap/ProseMirror)
-  coverImage      String?  // URL de imagen de portada
-  authorId        String
-  categoryId      String?
-  published       Boolean  @default(false)
-  featured        Boolean  @default(false) // Para destacar artículos importantes
-  readingTime     Int?     // Tiempo de lectura estimado en minutos
-  views           Int      @default(0) // Contador de vistas
-  publishedAt     DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id          String    @id @default(cuid())
+  title       String
+  slug        String    @unique
+  subtitle    String? // Subtítulo opcional
+  excerpt     String // Resumen breve para listados
+  content     String    @db.Text // Contenido en formato JSON (Tiptap/ProseMirror)
+  coverImage  String? // URL de imagen de portada
+  authorId    String
+  categoryId  String?
+  published   Boolean   @default(false)
+  featured    Boolean   @default(false) // Para destacar artículos importantes
+  readingTime Int? // Tiempo de lectura estimado en minutos
+  views       Int       @default(0) // Contador de vistas
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   // Relaciones
-  author   User              @relation("ArticleAuthor", fields: [authorId], references: [id])
-  category ArticleCategory?  @relation(fields: [categoryId], references: [id])
-  tags     ArticleTag[]
+  author    User              @relation("ArticleAuthor", fields: [authorId], references: [id])
+  category  ArticleCategory?  @relation(fields: [categoryId], references: [id])
+  tags      ArticleTag[]
   footnotes ArticleFootnote[]
-  media    ArticleMedia[]
+  media     ArticleMedia[]
 
   @@index([slug])
   @@index([authorId])
@@ -587,9 +625,9 @@ model ArticleTag {
 model ArticleFootnote {
   id        String   @id @default(cuid())
   articleId String
-  number    Int      // Número de la nota (superíndice)
+  number    Int // Número de la nota (superíndice)
   content   String   @db.Text // Contenido de la nota
-  order     Int      // Orden de aparición en el artículo
+  order     Int // Orden de aparición en el artículo
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -602,16 +640,16 @@ model ArticleFootnote {
 
 // Media (imágenes, videos) embebidos en artículos
 model ArticleMedia {
-  id          String   @id @default(cuid())
-  articleId   String
-  type        String   // 'image', 'video', 'embed'
-  url         String
-  caption     String?  // Pie de foto/video
-  alt         String?  // Texto alternativo para accesibilidad
-  width       Int?
-  height      Int?
-  order       Int      // Orden de aparición en el artículo
-  createdAt   DateTime @default(now())
+  id        String   @id @default(cuid())
+  articleId String
+  type      String // 'image', 'video', 'embed'
+  url       String
+  caption   String? // Pie de foto/video
+  alt       String? // Texto alternativo para accesibilidad
+  width     Int?
+  height    Int?
+  order     Int // Orden de aparición en el artículo
+  createdAt DateTime @default(now())
 
   // Relaciones
   article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
@@ -622,18 +660,200 @@ model ArticleMedia {
 
 // Blog posts para el área pública (mantenemos por compatibilidad)
 model BlogPost {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   title       String
-  slug        String   @unique
+  slug        String    @unique
   excerpt     String
   content     String
   coverImage  String?
-  published   Boolean  @default(false)
+  published   Boolean   @default(false)
   publishedAt DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@index([slug])
   @@index([published])
   @@map("blog_posts")
+}
+
+// Sistema de Tickets/Consultas Multi-nivel
+model Ticket {
+  id          String         @id @default(cuid())
+  type        TicketType // DIRECTOR, GENERAL, PROFESOR, CLASE
+  status      TicketStatus   @default(ABIERTO)
+  priority    TicketPriority @default(MEDIA)
+  subject     String // Asunto del ticket
+  message     String         @db.Text // Mensaje inicial
+  creatorId   String // Usuario que crea el ticket
+  courseId    String? // Curso relacionado (para PROFESOR y CLASE)
+  attachments String? // JSON array de URLs de archivos adjuntos
+  isRead      Boolean        @default(false) // Si ha sido leído por el destinatario
+  readAt      DateTime? // Cuándo fue leído
+  resolvedAt  DateTime? // Cuándo fue resuelto/cerrado
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  // Relaciones
+  creator   User             @relation("TicketCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  course    Course?          @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  responses TicketResponse[]
+
+  @@index([creatorId])
+  @@index([courseId])
+  @@index([type])
+  @@index([status])
+  @@index([priority])
+  @@map("tickets")
+}
+
+// Respuestas a tickets
+model TicketResponse {
+  id          String   @id @default(cuid())
+  ticketId    String
+  userId      String // Usuario que responde
+  message     String   @db.Text
+  attachments String? // JSON array de URLs
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relaciones
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@index([userId])
+  @@map("ticket_responses")
+}
+
+// ==========================================
+// SISTEMA DE EVALUACIÓN GAMIFICADA
+// ==========================================
+
+// Ejercicio Gamificado de Lección
+model GameExercise {
+  id           String           @id @default(cuid())
+  lessonId     String           @unique
+  type         GameExerciseType
+  title        String
+  instructions String           @db.Text
+  config       String           @db.Text // JSON con configuración específica del tipo de ejercicio
+  points       Int              @default(10)
+  timeLimit    Int? // Tiempo límite en segundos
+  isActive     Boolean          @default(true)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  // Relaciones
+  lesson      Lesson                   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  submissions GameExerciseSubmission[]
+
+  @@map("game_exercises")
+}
+
+// Envío/Intento de Ejercicio Gamificado
+model GameExerciseSubmission {
+  id          String   @id @default(cuid())
+  exerciseId  String
+  userId      String
+  answers     String   @db.Text // JSON con las respuestas del estudiante
+  score       Float // Puntuación obtenida (0-10)
+  totalPoints Int // Puntos totales posibles
+  passed      Boolean  @default(false)
+  timeSpent   Int? // Tiempo usado en segundos
+  attempt     Int // Número de intento
+  completedAt DateTime @default(now())
+
+  // Relaciones
+  exercise GameExercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  user     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([exerciseId])
+  @@index([userId])
+  @@map("game_exercise_submissions")
+}
+
+// Test de Módulo (10 preguntas)
+model ModuleTest {
+  id           String   @id @default(cuid())
+  moduleId     String   @unique
+  title        String
+  description  String?  @db.Text
+  passingScore Float    @default(5.0) // Nota mínima para aprobar (sobre 10)
+  timeLimit    Int? // Tiempo límite en minutos
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relaciones
+  module      Module                 @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  questions   ModuleTestQuestion[]
+  submissions ModuleTestSubmission[]
+
+  @@map("module_tests")
+}
+
+// Pregunta de Test de Módulo
+model ModuleTestQuestion {
+  id            String   @id @default(cuid())
+  testId        String
+  question      String   @db.Text
+  options       String   @db.Text // JSON array con las opciones
+  correctAnswer String   @db.Text // JSON array con índices de respuestas correctas
+  explanation   String?  @db.Text // Explicación de la respuesta correcta
+  order         Int
+  points        Float    @default(1.0) // Puntos de esta pregunta (total debe sumar 10)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relaciones
+  test ModuleTest @relation(fields: [testId], references: [id], onDelete: Cascade)
+
+  @@index([testId])
+  @@map("module_test_questions")
+}
+
+// Envío de Test de Módulo
+model ModuleTestSubmission {
+  id             String    @id @default(cuid())
+  testId         String
+  userId         String
+  answers        String    @db.Text // JSON con las respuestas del estudiante
+  score          Float // Calificación sobre 10
+  passed         Boolean   @default(false)
+  attempt        Int // Número de intento
+  isFirstAttempt Boolean   @default(false) // Solo el primero cuenta para la nota final
+  startedAt      DateTime  @default(now())
+  completedAt    DateTime?
+  timeSpent      Int? // Tiempo usado en minutos
+
+  // Relaciones
+  test ModuleTest @relation(fields: [testId], references: [id], onDelete: Cascade)
+  user User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([testId])
+  @@index([userId])
+  @@map("module_test_submissions")
+}
+
+// Registro de Calificaciones Consolidadas
+model GradeRecord {
+  id           String   @id @default(cuid())
+  userId       String
+  courseId     String
+  moduleId     String? // Si es nota de módulo
+  lessonId     String? // Si es nota de lección/ejercicio
+  type         String // 'GAME_EXERCISE', 'MODULE_TEST', 'FINAL_GRADE'
+  score        Float // Calificación (0-10)
+  weight       Float    @default(1.0) // Peso para cálculo de nota final
+  submissionId String? // ID del submission correspondiente
+  achievedAt   DateTime @default(now())
+
+  // Relaciones
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([courseId])
+  @@index([moduleId])
+  @@map("grade_records")
 }
