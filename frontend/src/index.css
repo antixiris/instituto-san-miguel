@@ -7,6 +7,9 @@
 /* FONT IMPORTS - Inter for clean, intellectual typography */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
+/* FONT IMPORTS - Georgia/Charter for Medium-style reading */
+@import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -504,6 +507,622 @@
 }
 
 /* =====================================================
+   MEDIUM.COM INSPIRED READING EXPERIENCE
+   Ultra legible, minimalist, content-first design
+   ===================================================== */
+
+.medium-content {
+  /* Typography foundation - Medium's secret sauce */
+  font-family: Georgia, Cambria, "Times New Roman", Times, serif;
+  font-size: 21px;
+  line-height: 1.58;
+  letter-spacing: -0.003em;
+  color: #454545;
+  max-width: 100%;
+}
+
+/* Force light mode colors for explicit light mode */
+html:not(.dark) .medium-content {
+  color: #454545 !important;
+}
+
+/* Dark mode text color */
+@media (prefers-color-scheme: dark) {
+  .medium-content {
+    color: #E6E6E6;
+  }
+}
+
+html.dark .medium-content {
+  color: #E6E6E6;
+}
+
+/* ========================================
+   HEADINGS - Clean Sans-Serif Hierarchy
+   ======================================== */
+
+.medium-content h1 {
+  font-family: Georgia, Cambria, "Times New Roman", Times, serif;
+  font-size: 42px;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.022em;
+  color: #454545;
+  margin-top: 2em;
+  margin-bottom: 0.5em;
+}
+
+.medium-content h2 {
+  font-family: Georgia, Cambria, "Times New Roman", Times, serif;
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.019em;
+  color: #454545;
+  margin-top: 1.8em;
+  margin-bottom: 0.46em;
+}
+
+.medium-content h3 {
+  font-family: Georgia, Cambria, "Times New Roman", Times, serif;
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.22;
+  letter-spacing: -0.012em;
+  color: #454545;
+  margin-top: 1.6em;
+  margin-bottom: 0.4em;
+}
+
+.medium-content h4 {
+  font-family: Georgia, Cambria, "Times New Roman", Times, serif;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: #454545;
+  margin-top: 1.4em;
+  margin-bottom: 0.4em;
+}
+
+/* Force light mode colors for headings */
+html:not(.dark) .medium-content h1,
+html:not(.dark) .medium-content h2,
+html:not(.dark) .medium-content h3,
+html:not(.dark) .medium-content h4 {
+  color: #454545 !important;
+}
+
+/* Dark mode headings */
+@media (prefers-color-scheme: dark) {
+  .medium-content h1,
+  .medium-content h2,
+  .medium-content h3,
+  .medium-content h4 {
+    color: #E6E6E6;
+  }
+}
+
+html.dark .medium-content h1,
+html.dark .medium-content h2,
+html.dark .medium-content h3,
+html.dark .medium-content h4 {
+  color: #E6E6E6;
+}
+
+/* ========================================
+   PARAGRAPHS - The Heart of Medium
+   ======================================== */
+
+.medium-content p {
+  font-family: Georgia, Cambria, "Times New Roman", Times, serif;
+  font-size: 21px;
+  line-height: 1.58;
+  letter-spacing: -0.003em;
+  color: #454545;
+  margin-top: 0;
+  margin-bottom: 2em;
+  word-break: break-word;
+  word-wrap: break-word;
+}
+
+/* Force light mode for paragraphs */
+html:not(.dark) .medium-content p {
+  color: #454545 !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  .medium-content p {
+    color: #E6E6E6;
+  }
+}
+
+html.dark .medium-content p {
+  color: #E6E6E6;
+}
+
+/* ========================================
+   LINKS - Corporate Orange Color
+   ======================================== */
+
+.medium-content a {
+  color: #EA580C;
+  text-decoration: underline;
+  text-decoration-color: #EA580C;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  transition: all 0.15s ease;
+}
+
+.medium-content a:hover {
+  color: #C2410C;
+  text-decoration-color: #C2410C;
+}
+
+/* Force orange links in light mode */
+html:not(.dark) .medium-content a {
+  color: #EA580C !important;
+  text-decoration-color: #EA580C !important;
+}
+
+html:not(.dark) .medium-content a:hover {
+  color: #C2410C !important;
+  text-decoration-color: #C2410C !important;
+}
+
+/* Orange links in dark mode */
+@media (prefers-color-scheme: dark) {
+  .medium-content a {
+    color: #EA580C;
+    text-decoration-color: #EA580C;
+  }
+
+  .medium-content a:hover {
+    color: #FB923C;
+    text-decoration-color: #FB923C;
+  }
+}
+
+html.dark .medium-content a {
+  color: #EA580C;
+  text-decoration-color: #EA580C;
+}
+
+html.dark .medium-content a:hover {
+  color: #FB923C;
+  text-decoration-color: #FB923C;
+}
+
+/* ========================================
+   STRONG & EMPHASIS
+   ======================================== */
+
+.medium-content strong {
+  font-weight: 700;
+  color: #454545;
+}
+
+.medium-content em {
+  font-style: italic;
+  color: #454545;
+}
+
+/* Force light mode for strong and em */
+html:not(.dark) .medium-content strong,
+html:not(.dark) .medium-content em {
+  color: #454545 !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  .medium-content strong,
+  .medium-content em {
+    color: #E6E6E6;
+  }
+}
+
+html.dark .medium-content strong,
+html.dark .medium-content em {
+  color: #E6E6E6;
+}
+
+/* ========================================
+   CODE INLINE - Minimal Badge Style
+   ======================================== */
+
+.medium-content code {
+  font-family: "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Menlo, Consolas, monospace;
+  font-size: 16px;
+  background-color: #F0F0F0;
+  color: #454545;
+  padding: 3px 6px;
+  border-radius: 3px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+/* Force light mode for code */
+html:not(.dark) .medium-content code {
+  color: #454545 !important;
+  background-color: #F0F0F0 !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  .medium-content code {
+    background-color: #1A1A1A;
+    color: #E6E6E6;
+  }
+}
+
+html.dark .medium-content code {
+  background-color: #1A1A1A;
+  color: #E6E6E6;
+}
+
+/* ========================================
+   CODE BLOCKS - Clean and Simple
+   ======================================== */
+
+.medium-content pre {
+  background-color: #F7F7F7;
+  border-radius: 5px;
+  padding: 20px;
+  margin-top: 3em;
+  margin-bottom: 3em;
+  overflow-x: auto;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.medium-content pre code {
+  background-color: transparent;
+  color: #454545;
+  padding: 0;
+  border-radius: 0;
+  font-size: 16px;
+}
+
+/* Force light mode for pre and pre code */
+html:not(.dark) .medium-content pre {
+  background-color: #F7F7F7 !important;
+}
+
+html:not(.dark) .medium-content pre code {
+  color: #454545 !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  .medium-content pre {
+    background-color: #1A1A1A;
+  }
+
+  .medium-content pre code {
+    color: #E6E6E6;
+  }
+}
+
+html.dark .medium-content pre {
+  background-color: #1A1A1A;
+}
+
+html.dark .medium-content pre code {
+  color: #E6E6E6;
+}
+
+/* ========================================
+   BLOCKQUOTES - Elegant Border Style
+   ======================================== */
+
+.medium-content blockquote {
+  border-left: 3px solid #222222;
+  padding-left: 30px;
+  margin-left: 0;
+  margin-right: 0;
+  margin-top: 3em;
+  margin-bottom: 3em;
+  font-size: 24px;
+  line-height: 1.48;
+  font-style: italic;
+  color: #666666;
+}
+
+.medium-content blockquote p {
+  font-size: 24px;
+  line-height: 1.48;
+  color: #666666;
+  margin-bottom: 1em;
+}
+
+.medium-content blockquote p:last-child {
+  margin-bottom: 0;
+}
+
+@media (prefers-color-scheme: dark) {
+  .medium-content blockquote {
+    border-left-color: #E6E6E6;
+    color: #999999;
+  }
+
+  .medium-content blockquote p {
+    color: #999999;
+  }
+}
+
+/* ========================================
+   LISTS - Simple and Clean
+   ======================================== */
+
+.medium-content ul,
+.medium-content ol {
+  font-family: Georgia, Cambria, "Times New Roman", Times, serif;
+  font-size: 21px;
+  line-height: 1.58;
+  color: #454545;
+  margin-top: 2em;
+  margin-bottom: 2em;
+  padding-left: 40px;
+  list-style-position: outside;
+}
+
+.medium-content ul {
+  list-style-type: disc;
+}
+
+.medium-content ol {
+  list-style-type: decimal;
+}
+
+.medium-content li {
+  margin-bottom: 0.5em;
+  padding-left: 0.5em;
+  display: list-item;
+}
+
+.medium-content li::marker {
+  color: #454545;
+  font-weight: 400;
+}
+
+/* Force light mode for lists */
+html:not(.dark) .medium-content ul,
+html:not(.dark) .medium-content ol {
+  color: #454545 !important;
+}
+
+html:not(.dark) .medium-content li::marker {
+  color: #454545 !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  .medium-content ul,
+  .medium-content ol {
+    color: #E6E6E6;
+  }
+
+  .medium-content li::marker {
+    color: #E6E6E6;
+  }
+}
+
+html.dark .medium-content ul,
+html.dark .medium-content ol {
+  color: #E6E6E6;
+}
+
+html.dark .medium-content li::marker {
+  color: #E6E6E6;
+}
+
+/* ========================================
+   IMAGES - Full Width, Generous Spacing
+   ======================================== */
+
+.medium-content img {
+  width: 100%;
+  height: auto;
+  margin-top: 3em;
+  margin-bottom: 3em;
+  border-radius: 0;
+  display: block;
+}
+
+/* ========================================
+   FIGURE & FIGCAPTION
+   ======================================== */
+
+.medium-content figure {
+  margin-top: 3em;
+  margin-bottom: 3em;
+}
+
+.medium-content figcaption {
+  text-align: center;
+  font-size: 14px;
+  line-height: 1.4;
+  color: #666666;
+  font-style: italic;
+  margin-top: 1em;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  .medium-content figcaption {
+    color: #999999;
+  }
+}
+
+/* ========================================
+   TABLES - Academic Style
+   ======================================== */
+
+.medium-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 3em;
+  margin-bottom: 3em;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 18px;
+  line-height: 1.5;
+}
+
+.medium-content thead {
+  background-color: #2A2A2A;
+  border-bottom: 1px solid #DDDDDD;
+}
+
+.medium-content th {
+  padding: 16px;
+  text-align: left;
+  font-weight: 600;
+  color: #FFFFFF;
+  border-bottom: 1px solid #DDDDDD;
+}
+
+.medium-content td {
+  padding: 16px;
+  color: #454545;
+  border-bottom: 1px solid #EEEEEE;
+}
+
+/* Removed hover effect from table rows */
+
+/* Force light mode for tables */
+html:not(.dark) .medium-content thead {
+  background-color: #2A2A2A !important;
+}
+
+html:not(.dark) .medium-content th {
+  color: #FFFFFF !important;
+}
+
+html:not(.dark) .medium-content td {
+  color: #454545 !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  .medium-content thead {
+    background-color: #1A1A1A;
+    border-bottom-color: #333333;
+  }
+
+  .medium-content th {
+    color: #E6E6E6;
+    border-bottom-color: #333333;
+  }
+
+  .medium-content td {
+    color: #E6E6E6;
+    border-bottom-color: #222222;
+  }
+}
+
+html.dark .medium-content thead {
+  background-color: #1A1A1A;
+  border-bottom-color: #333333;
+}
+
+html.dark .medium-content th {
+  color: #E6E6E6;
+  border-bottom-color: #333333;
+}
+
+html.dark .medium-content td {
+  color: #E6E6E6;
+  border-bottom-color: #222222;
+}
+
+/* ========================================
+   HORIZONTAL RULE - Minimal Separator
+   ======================================== */
+
+.medium-content hr {
+  border: 0;
+  height: 1px;
+  background-color: #E1E1E1;
+  margin-top: 4em;
+  margin-bottom: 4em;
+  max-width: 100px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+@media (prefers-color-scheme: dark) {
+  .medium-content hr {
+    background-color: #333333;
+  }
+}
+
+/* ========================================
+   RESPONSIVE - Mobile Optimization
+   ======================================== */
+
+@media (max-width: 768px) {
+  .medium-content {
+    font-size: 18px;
+    line-height: 1.58;
+  }
+
+  .medium-content h1 {
+    font-size: 32px;
+    margin-top: 1.5em;
+  }
+
+  .medium-content h2 {
+    font-size: 26px;
+    margin-top: 1.4em;
+  }
+
+  .medium-content h3 {
+    font-size: 22px;
+    margin-top: 1.3em;
+  }
+
+  .medium-content h4 {
+    font-size: 20px;
+  }
+
+  .medium-content p {
+    font-size: 18px;
+    margin-bottom: 1.8em;
+  }
+
+  .medium-content blockquote {
+    font-size: 21px;
+    padding-left: 20px;
+    margin-top: 2em;
+    margin-bottom: 2em;
+  }
+
+  .medium-content blockquote p {
+    font-size: 21px;
+  }
+
+  .medium-content ul,
+  .medium-content ol {
+    font-size: 18px;
+    padding-left: 24px;
+  }
+
+  .medium-content table {
+    font-size: 16px;
+  }
+
+  .medium-content th,
+  .medium-content td {
+    padding: 12px;
+  }
+
+  .medium-content img {
+    margin-top: 2em;
+    margin-bottom: 2em;
+  }
+
+  .medium-content pre {
+    padding: 16px;
+    margin-top: 2em;
+    margin-bottom: 2em;
+  }
+}
+
+/* =====================================================
    PRINT STYLES
    ===================================================== */
 
@@ -518,5 +1137,47 @@
 
   a[href]::after {
     content: " (" attr(href) ")";
+  }
+
+  .medium-content {
+    max-width: 100% !important;
+    font-size: 12pt;
+    line-height: 1.5;
+    color: #000000;
+  }
+
+  .medium-content h1 {
+    font-size: 24pt;
+    page-break-after: avoid;
+  }
+
+  .medium-content h2 {
+    font-size: 20pt;
+    page-break-after: avoid;
+  }
+
+  .medium-content h3 {
+    font-size: 16pt;
+    page-break-after: avoid;
+  }
+
+  .medium-content pre {
+    page-break-inside: avoid;
+    border: 1px solid #000 !important;
+    background: #f5f5f5 !important;
+  }
+
+  .medium-content img {
+    page-break-inside: avoid;
+    max-width: 100%;
+  }
+
+  .medium-content blockquote {
+    page-break-inside: avoid;
+    border-left: 4px solid #000 !important;
+  }
+
+  .medium-content table {
+    page-break-inside: avoid;
   }
 }

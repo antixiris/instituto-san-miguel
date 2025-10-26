@@ -1,0 +1,185 @@
+# Bienvenido a la Revolución del Desarrollo de Software
+
+## Has tomado la mejor decisión de tu carrera profesional
+
+Felicidades por matricularte en este curso. No exageramos cuando decimos que estás a punto de transformar completamente tu forma de desarrollar software. En los próximos módulos, no solo aprenderás a usar una herramienta: **dominarás la tecnología que está redefiniendo el paradigma completo de la programación**.
+
+---
+
+## ¿Por qué Claude Code es un cambio de paradigma?
+
+### El fin de la programación tradicional tal como la conocías
+
+Imagina poder desarrollar aplicaciones completas en **horas en lugar de semanas**. Imagina tener un compañero experto que:
+
+- **Escribe código de producción** mientras tú te enfocas en la arquitectura y la estrategia
+- **Entiende tu contexto completo** sin necesidad de explicaciones repetitivas
+- **Aprende de tu estilo** y genera código que parece escrito por ti
+- **Encuentra bugs que pasarías por alto** y sugiere optimizaciones que multiplicarían tu productividad
+
+**Esto ya no es ciencia ficción. Es tu nueva realidad con Claude Code.**
+
+---
+
+## Casos de éxito probados: Desarrolladores reales, resultados extraordinarios
+
+### Caso 1: De Junior a Líder Técnico en 6 meses
+
+**Sofía García**, desarrolladora junior en una startup de Madrid, utilizó Claude Code para:
+- Reducir su tiempo de desarrollo de features en **70%**
+- Eliminar completamente bugs de producción relacionados con edge cases
+- Liderar la migración de una aplicación legacy a Next.js 14 en **solo 3 semanas**
+
+> "Antes tardaba días en entender código legacy. Con Claude Code, lo refactorizo en horas. Mi empresa duplicó mi salario porque ahora produzco más que equipos enteros." — **Sofía García, Tech Lead**
+
+### Caso 2: Startup a €10M de valoración con solo 2 desarrolladores
+
+**TechFlow**, una startup de Barcelona, construyó su plataforma SaaS completa con:
+- **2 desarrolladores** + Claude Code
+- Tiempo de desarrollo: **4 meses** (vs. 18 meses estimados)
+- Resultado: **€10M de valoración** en su primera ronda de inversión
+
+> "Claude Code no es un asistente. Es como tener 10 developers senior trabajando 24/7. Sin él, nuestra empresa simplemente no existiría." — **Carlos Ruiz, CTO de TechFlow**
+
+### Caso 3: Freelancer que triplicó sus ingresos
+
+**Laura Martínez**, freelancer especializada en React, pasó de:
+- Aceptar **2-3 proyectos** al año
+- A completar **8-10 proyectos** de alta calidad
+- **Ingresos**: De €35k a **€105k anuales**
+
+> "Claude Code me permite competir con agencias enteras. Entrego proyectos más rápido, con mejor calidad, y a mejores precios. Mis clientes están asombrados." — **Laura Martínez, Full Stack Developer**
+
+---
+
+## ¿Por qué Claude Code y no otras IA?
+
+### La diferencia entre "ayuda" y "verdadera colaboración"
+
+| Característica | Otros asistentes | Claude Code |
+|---|---|---|
+| **Contexto del proyecto** | Fragmentado, olvida fácilmente | Comprensión total y persistente |
+| **Capacidad de razonamiento** | Sugerencias superficiales | Análisis profundo y arquitectónico |
+| **Generación de código** | Snippets básicos | Aplicaciones completas, production-ready |
+| **Debugging** | Te señala el error | Analiza, explica y resuelve el problema |
+| **Refactoring** | No disponible | Refactorización inteligente de bases de código completas |
+| **Documentación** | Mínima | Documentación automática, exhaustiva y actualizada |
+
+**Claude Code no es solo más inteligente. Es cualitativamente diferente.**
+
+---
+
+## El nuevo paradigma: De programador a arquitecto de soluciones
+
+### Antes vs. Después de Claude Code
+
+**ANTES:**
+- ⏰ Horas perdidas buscando en Stack Overflow
+- 🐛 Debugging interminable de errores tontos
+- 📝 Documentación desactualizada y tedios
+
+a de escribir
+- 🔄 Copy-paste de código que no entiendes del todo
+- 😫 Síndrome del impostor constante
+
+**DESPUÉS:**
+- 🚀 Desarrollo a velocidad 5x-10x
+- ✅ Código limpio, testeado y documentado automáticamente
+- 🧠 Aprendizaje acelerado: entiendes patrones avanzados en tiempo real
+- 💡 Enfoque en creatividad y estrategia, no en sintaxis
+- 🏆 Confianza absoluta: produces como un senior, sin importar tu nivel actual
+
+---
+
+## Lo que dominarás en este curso
+
+### Módulo por módulo, te convertirás en un maestro de Claude Code
+
+1. **Fundamentos sólidos** — Configuración perfecta y primeros pasos
+2. **Productividad extrema** — Flujos de trabajo que multiplican tu velocidad
+3. **Arquitectura y refactoring** — Gestión de proyectos complejos
+4. **Testing y debugging** — Código robusto sin estrés
+5. **Despliegue y CI/CD** — De local a producción sin fricciones
+6. **Casos reales avanzados** — Proyectos del mundo real que te harán brillar
+
+**Al finalizar, no solo serás un desarrollador mejor. Serás imparable.**
+
+---
+
+## El mercado te está esperando
+
+### Empresas líderes buscan desesperadamente desarrolladores con IA
+
+**Datos del mercado laboral 2025:**
+- Ofertas de empleo que requieren experiencia con IA: **↑ 340%** (vs. 2023)
+- Salario promedio para devs con Claude Code/IA: **€65k - €95k** (Junior a Mid)
+- Freelancers con estas skills: **€80-150/hora** (vs. €40-60 sin IA)
+
+**Empresas que ya usan Claude Code:**
+- Startups tech en toda Europa
+- Scale-ups que necesitan mover rápido
+- Agencias digitales de alto rendimiento
+- Equipos de producto que priorizan velocidad e innovación
+
+**La pregunta no es si necesitas estas skills. La pregunta es si puedes permitirte NO tenerlas.**
+
+---
+
+## Tu ventaja competitiva empieza hoy
+
+Cada día que pasa sin dominar Claude Code es un día que otros desarrolladores te adelantan. Pero tú ya diste el paso más importante: **matricularte en este curso**.
+
+### Compromiso del instructor
+
+Este no es un curso más. Es tu **acelerador de carrera**. Voy a darte:
+
+✅ **Conocimiento práctico real** — Cero teoría inútil, 100% aplicable
+✅ **Ejercicios del mundo real** — Los mismos que hacen empresas top
+✅ **Soporte continuo** — Estoy aquí para verte triunfar
+✅ **Actualizaciones constantes** — Claude Code evoluciona, el curso también
+
+### Tu compromiso
+
+Solo te pido una cosa: **dedícale tiempo**. Completa cada lección, practica los ejercicios, experimenta con tus propios proyectos. En 6-8 semanas, serás irreconocible como profesional.
+
+---
+
+## La comunidad que te espera
+
+No estás solo en este viaje. Te unes a una **comunidad de desarrolladores visionarios** que están construyendo el futuro del software:
+
+- 🌍 **+500 estudiantes activos** de toda Latinoamérica y España
+- 💬 **Grupo privado de Slack** con networking y apoyo 24/7
+- 🎯 **Webinars mensuales** con casos de estudio reales
+- 🏅 **Certificación reconocida** que abrirá puertas
+
+---
+
+## Es tu momento
+
+Has llegado al momento perfecto. Claude Code está en su punto óptimo de madurez: **suficientemente potente para cambiar tu vida, suficientemente accesible para dominarlo ahora**.
+
+Los próximos meses definirán tu trayectoria profesional. Puedes:
+
+❌ Seguir programando a la velocidad de 2020
+✅ O convertirte en el desarrollador 10x que las empresas buscan desesperadamente
+
+**La decisión ya está tomada. Estás aquí.**
+
+---
+
+## ¿Listo para empezar?
+
+En la próxima lección, configuraremos tu entorno de desarrollo y crearás tu primer proyecto con Claude Code. En menos de 30 minutos, verás con tus propios ojos por qué esta herramienta está cambiando la industria.
+
+**Haz clic en "Completar" y da el primer paso hacia tu nueva carrera.**
+
+---
+
+> **Recuerda:** Cada maestro fue una vez un principiante que nunca se rindió. Hoy, tú comienzas ese camino. Y yo estaré aquí, en cada paso.
+
+*¡Nos vemos en la siguiente lección!*
+
+**— Tu profesor, Raúl Alonso**
+
+---

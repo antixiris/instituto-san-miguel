@@ -21,6 +21,7 @@ import modulesRoutes from './routes/modules.routes';
 import gameExercisesRoutes from './routes/gameExercises.routes';
 import moduleTestsRoutes from './routes/moduleTests.routes';
 import gradesRoutes from './routes/grades.routes';
+import enrollmentsRoutes from './routes/enrollments.routes';
 
 // Importar middleware
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
@@ -29,16 +30,37 @@ import { prisma, disconnectPrisma } from './utils/prisma';
 // Configuración
 const app: Application = express();
 const PORT = process.env.PORT || 3001;
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+
+// En desarrollo, permitir ambos puertos comunes de Vite
+const isDevelopment = process.env.NODE_ENV !== 'production';
+const ALLOWED_ORIGINS = isDevelopment
+  ? ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000']
+  : process.env.FRONTEND_URL
+  ? [process.env.FRONTEND_URL]
+  : [];
 
 // Middleware de seguridad
 app.use(helmet());
 
-// CORS
+// CORS - Configuración más permisiva para desarrollo
 app.use(
   cors({
-    origin: FRONTEND_URL,
+    origin: (origin, callback) => {
+      // Permitir requests sin origin (como Postman, curl, etc.)
+      if (!origin) return callback(null, true);
+
+      if (ALLOWED_ORIGINS.includes(origin)) {
+        callback(null, true);
+      } else {
+        console.log(`CORS: Origin "${origin}" not allowed`);
+        callback(null, false);
+      }
+    },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    exposedHeaders: ['Content-Range', 'X-Content-Range'],
+    maxAge: 600,
   })
 );
 
@@ -85,6 +107,7 @@ app.use('/api', gradesRoutes); // Calificaciones y progreso
 app.use('/api/tickets', ticketsRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/enrollments', enrollmentsRoutes);
 
 // Middleware de error 404
 app.use(notFoundHandler);

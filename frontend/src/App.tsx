@@ -21,6 +21,7 @@ import RegisterPage from './pages/auth/RegisterPage';
 import DashboardPage from './pages/campus/DashboardPage';
 import MyCoursesPage from './pages/campus/MyCoursesPage';
 import CourseLearningPage from './pages/campus/CourseLearningPage';
+import ModuleTestPage from './pages/campus/ModuleTestPage';
 import ProfilePage from './pages/campus/ProfilePage';
 
 // Admin Pages
@@ -80,6 +81,8 @@ function App() {
         {/* Rutas generales del campus */}
         <Route path="/campus/mis-cursos" element={<MyCoursesPage />} />
         <Route path="/campus/curso/:courseId" element={<CourseLearningPage />} />
+        <Route path="/campus/cursos/:slug" element={<CourseLearningPage />} />
+        <Route path="/campus/module/:moduleId/test" element={<ModuleTestPage />} />
         <Route path="/campus/perfil" element={<ProfilePage />} />
       </Route>
     </Routes>

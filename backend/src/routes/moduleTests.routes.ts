@@ -7,6 +7,7 @@ import {
   deleteModuleTest,
   submitModuleTest,
   getMyTestSubmissions,
+  getLastTestResult,
   getAllTestSubmissions,
 } from '../controllers/moduleTests.controller';
 import { authenticate } from '../middleware/auth';
@@ -36,6 +37,9 @@ router.post('/module-tests/:testId/submit', submitModuleTest);
 
 // Obtener mis submissions de un test
 router.get('/module-tests/:testId/my-submissions', getMyTestSubmissions);
+
+// Obtener el último resultado con feedback completo
+router.get('/module-tests/:testId/last-result', getLastTestResult);
 
 // Obtener todas las submissions de un test (ADMIN/PROFESOR)
 router.get('/module-tests/:testId/submissions', getAllTestSubmissions);

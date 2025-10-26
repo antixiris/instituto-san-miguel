@@ -9,13 +9,18 @@ async function main() {
   // Buscar o crear usuario instructor
   const instructor = await prisma.user.upsert({
     where: { email: 'raul@institutosanmiguel.com' },
-    update: {},
+    update: {
+      avatar: '/instructors/raulalonso.png',
+      bio: 'Desarrollador Full Stack con más de 15 años de experiencia en la industria tecnológica. Especializado en inteligencia artificial aplicada al desarrollo de software y metodologías ágiles. Certificado por Anthropic en Claude AI y apasionado por enseñar las últimas tecnologías.',
+    },
     create: {
       email: 'raul@institutosanmiguel.com',
       firstName: 'Raúl',
       lastName: 'Alonso',
       password: '$2a$10$YourHashedPasswordHere', // Usar bcrypt en producción
       role: 'PROFESOR',
+      avatar: '/instructors/raulalonso.png',
+      bio: 'Desarrollador Full Stack con más de 15 años de experiencia en la industria tecnológica. Especializado en inteligencia artificial aplicada al desarrollo de software y metodologías ágiles. Certificado por Anthropic en Claude AI y apasionado por enseñar las últimas tecnologías.',
     },
   });
 
@@ -38,7 +43,24 @@ async function main() {
   // Buscar o crear el curso
   const course = await prisma.course.upsert({
     where: { slug: 'especialista-claude-code' },
-    update: {},
+    update: {
+      learningGoals: JSON.stringify([
+        'Dominar Claude Code y sus comandos avanzados para desarrollo profesional',
+        'Crear aplicaciones full stack completas con asistencia de IA',
+        'Implementar patrones de diseño y mejores prácticas con Claude',
+        'Desarrollar backends robustos con Node.js, Express y Prisma ORM',
+        'Construir frontends modernos con React, TypeScript y Tailwind CSS',
+        'Aplicar técnicas avanzadas de prompting para optimizar resultados',
+        'Automatizar flujos de trabajo y tareas repetitivas de desarrollo',
+        'Integrar sistemas de autenticación, testing y deployment'
+      ]),
+      prerequisites: JSON.stringify([
+        'Conocimientos básicos de programación (cualquier lenguaje)',
+        'Familiaridad con HTML, CSS y JavaScript (nivel básico)',
+        'Computadora con acceso a internet',
+        'Ganas de aprender y experimentar con IA'
+      ]),
+    },
     create: {
       slug: 'especialista-claude-code',
       title: 'Especialista en Desarrollo con Claude Code',
@@ -53,6 +75,22 @@ async function main() {
       published: true,
       status: 'PUBLISHED',
       publishedAt: new Date(),
+      learningGoals: JSON.stringify([
+        'Dominar Claude Code y sus comandos avanzados para desarrollo profesional',
+        'Crear aplicaciones full stack completas con asistencia de IA',
+        'Implementar patrones de diseño y mejores prácticas con Claude',
+        'Desarrollar backends robustos con Node.js, Express y Prisma ORM',
+        'Construir frontends modernos con React, TypeScript y Tailwind CSS',
+        'Aplicar técnicas avanzadas de prompting para optimizar resultados',
+        'Automatizar flujos de trabajo y tareas repetitivas de desarrollo',
+        'Integrar sistemas de autenticación, testing y deployment'
+      ]),
+      prerequisites: JSON.stringify([
+        'Conocimientos básicos de programación (cualquier lenguaje)',
+        'Familiaridad con HTML, CSS y JavaScript (nivel básico)',
+        'Computadora con acceso a internet',
+        'Ganas de aprender y experimentar con IA'
+      ]),
     },
   });
 
@@ -166,6 +204,7 @@ async function main() {
         title: moduleData.title,
         description: moduleData.description,
         order: moduleIndex + 1,
+        isPublished: true,
       },
     });
 

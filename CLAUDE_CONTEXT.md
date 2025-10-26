@@ -890,6 +890,448 @@ className="text-orange-600 dark:text-orange-500"
 
 ---
 
-**Última actualización:** 22 de Octubre de 2025
-**Versión:** 1.1.0 - Curso Claude Code implementado
+## 🔄 Sesión 26 Oct 2025 - Sistema de Evaluación y Calificaciones
+
+### Trabajo Realizado
+
+#### 1. Sistema de Videos en Lecciones
+**Problema inicial:** Video player aparecía en todas las lecciones independientemente de si tenían video.
+
+**Scripts creados:**
+- `fix-by-id.ts` - Actualización de lecciones específicas por ID
+- `fix-all-lesson-3-videos.ts` - Actualización masiva de lecciones duplicadas
+- `add-video-lesson-3.ts` - Configuración de video en lección 3
+
+**Solución implementada:**
+- Solo lecciones con `type: 'VIDEO'` y `videoUrl` muestran el reproductor
+- Actualización de lecciones duplicadas en BD (problema de datos duplicados)
+- Copia de video `Tu_Primer_Proyecto_Claude.mp4` a `/frontend/public/videos/`
+
+**Archivos de video:**
+```
+frontend/public/videos/
+├── Una_Revolucion_en_el_Codigo.mp4 (28 MB) - Lección 1
+└── Tu_Primer_Proyecto_Claude.mp4 (39 MB) - Lección 3
+```
+
+#### 2. Corrección del Timer de Tests
+**Problema:** Timer mostraba 600 minutos en lugar de 60.
+
+**Script:** `fix-all-test-times.ts`
+```typescript
+await prisma.moduleTest.updateMany({
+  where: {
+    module: {
+      course: { slug: 'especialista-claude-code' }
+    }
+  },
+  data: { timeLimit: 60 }
+});
+```
+
+**Resultado:** 16 tests actualizados correctamente.
+
+#### 3. Mejora de Preguntas del Test Módulo 1
+**Problema:** Preguntas genéricas sin relación con el contenido de las lecciones.
+
+**Script:** `create-proper-test-questions.ts`
+
+**Estructura implementada:**
+- **2 preguntas por lección** (5 lecciones = 10 preguntas)
+- Distribución equilibrada:
+  - Lección 1: Preguntas 1-2 (ventajas Claude Code, paradigma)
+  - Lección 2: Preguntas 3-4 (Node.js, RAM)
+  - Lección 3: Preguntas 5-6 (comando init, info proyecto)
+  - Lección 4: Preguntas 7-8 (comando help, panel historial)
+  - Lección 5: Preguntas 9-10 (archivo config, mejores prácticas)
+
+**Características:**
+- Cada pregunta tiene `explanation` para feedback educativo
+- `points: 1.0` por pregunta
+- `correctAnswer` como array de índices
+
+#### 4. Vista de Resultados del Test con Feedback Visual
+**Archivo:** `frontend/src/pages/campus/ModuleTestPage.tsx`
+
+**Implementación completa:**
+
+**Interfaces agregadas (líneas 28-36):**
+```typescript
+interface TestResults {
+  score: number;
+  passed: boolean;
+  feedback: {
+    [questionId: string]: {
+      correct: boolean;
+      correctAnswer: number[];
+      explanation: string;
+      pointsEarned: number;
+    };
+  };
+}
+```
+
+**Estados agregados (líneas 47-48):**
+```typescript
+const [results, setResults] = useState<TestResults | null>(null);
+const [showResults, setShowResults] = useState(false);
+```
+
+**Vista de resultados (líneas 182-382):**
+- **Banner de resultado:** Verde si aprobó, rojo si no
+- **Puntuación grande:** Formato X.X/10
+- **Preguntas revisadas:** Cada una con:
+  - ✅ Check verde si correcta
+  - ❌ X roja si incorrecta
+  - Respuesta correcta destacada con borde verde
+  - Respuesta incorrecta del alumno con borde rojo
+  - Etiquetas "CORRECTA" y "TU RESPUESTA"
+  - Explicación en recuadro azul informativo
+
+**Colores por estado:**
+```tsx
+// Correcta: border-green-500, bg-green-50
+// Incorrecta: border-red-500, bg-red-50
+// No seleccionada: border-gray-200, bg-gray-50
+```
+
+#### 5. Sistema de Calificaciones en Módulos
+**Archivo:** `frontend/src/pages/campus/CourseLearningPage.tsx`
+
+**Imports agregados (línea 3):**
+```typescript
+import { Crown, ThumbsUp, ThumbsDown } from 'lucide-react';
+```
+
+**Estado para calificaciones (línea 63):**
+```typescript
+const [moduleGrades, setModuleGrades] = useState<Map<string, number>>(new Map());
+```
+
+**Función para iconos según calificación (líneas 244-270):**
+```typescript
+const getGradeDisplay = (score: number) => {
+  if (score >= 9) {
+    return {
+      icon: <Crown className="w-4 h-4" />,           // 👑 Corona
+      color: 'text-yellow-600 dark:text-yellow-500', // Amarillo dorado
+      bgColor: 'bg-yellow-50 dark:bg-yellow-900/20'
+    };
+  } else if (score >= 7) {
+    return {
+      icon: <Trophy className="w-4 h-4" />,          // 🏆 Copa
+      color: 'text-green-600 dark:text-green-500',   // Verde
+      bgColor: 'bg-green-50 dark:bg-green-900/20'
+    };
+  } else if (score >= 5) {
+    return {
+      icon: <ThumbsUp className="w-4 h-4" />,        // 👍 Pulgar arriba
+      color: 'text-blue-600 dark:text-blue-500',     // Azul
+      bgColor: 'bg-blue-50 dark:bg-blue-900/20'
+    };
+  } else {
+    return {
+      icon: <ThumbsDown className="w-4 h-4" />,      // 👎 Pulgar abajo
+      color: 'text-red-600 dark:text-red-500',       // Rojo
+      bgColor: 'bg-red-50 dark:bg-red-900/20'
+    };
+  }
+};
+```
+
+**Display de calificación en header módulo (líneas 499-508):**
+```typescript
+{moduleGrades.has(module.id) && (
+  <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full ${bgColor}`}>
+    <span className={color}>{icon}</span>
+    <span className={`text-xs font-bold ${color}`}>
+      {moduleGrades.get(module.id)!.toFixed(1)}
+    </span>
+  </div>
+)}
+```
+
+#### 6. Botón Dinámico "Test de evaluación" vs "Revisar test"
+**Archivo:** `CourseLearningPage.tsx` (líneas 678-695)
+
+**Lógica implementada:**
+```typescript
+const { isLast, moduleTestId, moduleId } = isLastLessonOfModule();
+const hasGrade = moduleId && moduleGrades.has(moduleId);
+
+if (isLast && isCompleted && moduleTestId) {
+  return (
+    <button className={hasGrade ? 'bg-blue-600' : 'bg-green-600'}>
+      <span>{hasGrade ? 'Revisar test' : 'Test de evaluación'}</span>
+    </button>
+  );
+}
+```
+
+**Comportamiento:**
+- Test NO hecho: "Test de evaluación" (verde)
+- Test YA hecho: "Revisar test" (azul)
+
+#### 7. Auto-carga de Resultados Previos del Test
+**Backend - Nuevo endpoint:** `backend/src/controllers/moduleTests.controller.ts`
+
+**Función agregada (líneas 610-695):**
+```typescript
+export const getLastTestResult = async (req: AuthRequest, res: Response) => {
+  // Obtiene última submission del usuario
+  // Reconstruye el feedback completo
+  // Devuelve: score, passed, answers, feedback
+}
+```
+
+**Ruta agregada:** `backend/src/routes/moduleTests.routes.ts` (línea 42)
+```typescript
+router.get('/module-tests/:testId/last-result', getLastTestResult);
+```
+
+**Frontend - Auto-carga:** `ModuleTestPage.tsx` (líneas 54-86)
+```typescript
+useEffect(() => {
+  if (test) {
+    checkForPreviousResult();
+  }
+}, [test]);
+
+const checkForPreviousResult = async () => {
+  const response = await fetch(`/api/module-tests/${test.id}/last-result`);
+  if (response.ok) {
+    const data = await response.json();
+    setResults(data.data);
+    setShowResults(true); // Muestra directamente los resultados
+  }
+};
+```
+
+**Flujo:**
+1. Usuario completa test → resultados guardados en BD
+2. Usuario vuelve a la página del test
+3. Sistema detecta resultado previo
+4. Muestra automáticamente vista de resultados (sin permitir repetir)
+
+#### 8. Corrección de Navegación con Slug
+**Problema:** Botón "Volver al curso" causaba error 404 al usar `courseId` en lugar de `slug`.
+
+**Backend - Actualización del endpoint (líneas 87-91):**
+```typescript
+module: {
+  select: {
+    id: true,
+    title: true,
+    courseId: true,
+    course: {
+      select: { slug: true }  // AGREGADO
+    },
+  },
+}
+```
+
+**Frontend - Interface actualizada (líneas 15-17):**
+```typescript
+course: {
+  slug: string;
+}
+```
+
+**Navegación corregida (líneas 226 y 411):**
+```typescript
+// ❌ ANTES: navigate(`/campus/curso/${test.module.courseId}`)
+// ✅ AHORA: navigate(`/campus/cursos/${test.module.course.slug}`)
+```
+
+**Rutas válidas en la app:**
+- `/campus/curso/:courseId` - Por ID (no usado ahora)
+- `/campus/cursos/:slug` - Por slug (CORRECTO)
+
+### Archivos Modificados
+
+#### Frontend
+```
+src/pages/campus/CourseLearningPage.tsx
+├── Línea 3: Imports Crown, ThumbsUp, ThumbsDown
+├── Línea 63: Estado moduleGrades (Map)
+├── Líneas 131-145: Carga de calificaciones desde API
+├── Líneas 244-270: Función getGradeDisplay()
+├── Líneas 499-508: Display de calificación en header módulo
+└── Líneas 678-695: Botón dinámico Test/Revisar
+
+src/pages/campus/ModuleTestPage.tsx
+├── Líneas 15-17: Interface con course.slug
+├── Líneas 28-36: Interface TestResults
+├── Líneas 47-48: Estados results y showResults
+├── Líneas 54-86: Auto-carga de resultados previos
+├── Líneas 127-133: Guardar resultados en submit
+├── Líneas 182-382: Vista completa de resultados
+├── Línea 226: Navegación con slug (header)
+└── Línea 411: Navegación con slug (botón inferior)
+```
+
+#### Backend
+```
+src/controllers/moduleTests.controller.ts
+├── Líneas 87-91: Include course.slug en getModuleTestForStudent
+└── Líneas 610-695: Nueva función getLastTestResult
+
+src/routes/moduleTests.routes.ts
+├── Línea 10: Import getLastTestResult
+└── Línea 42: Ruta GET /module-tests/:testId/last-result
+```
+
+#### Scripts de Base de Datos
+```
+backend/
+├── fix-by-id.ts              # Corrección de lecciones duplicadas
+├── fix-all-test-times.ts     # Actualización timer 60 min
+├── create-proper-test-questions.ts  # 10 preguntas distribuidas
+├── add-video-lesson-3.ts     # Configuración video lección 3
+└── fix-all-lesson-3-videos.ts # Actualización masiva videos
+```
+
+### Decisiones Técnicas Importantes
+
+#### 1. Sistema de Calificaciones Visual
+**Rangos de puntuación:**
+- **9-10:** Corona dorada 👑 (excelencia)
+- **7-8:** Copa verde 🏆 (notable)
+- **5-6:** Pulgar arriba azul 👍 (aprobado)
+- **<5:** Pulgar abajo rojo 👎 (suspenso)
+
+**Implementación:** Función `getGradeDisplay()` centralizada que retorna icon, color y bgColor.
+
+#### 2. Almacenamiento de Resultados
+**Decisión:** Guardar resultado completo en BD (submission) + reconstruir feedback en backend.
+
+**Ventajas:**
+- No duplicar datos (feedback se calcula on-demand)
+- Consistencia con cambios en preguntas/respuestas
+- Menor espacio en BD
+
+**Estructura:**
+```typescript
+ModuleTestSubmission {
+  score: number
+  passed: boolean
+  answers: JSON  // Respuestas del usuario
+  attempt: number
+  // feedback NO se guarda, se reconstruye
+}
+```
+
+#### 3. Auto-carga de Resultados
+**Decisión:** Cargar automáticamente resultado anterior si existe.
+
+**Flujo:**
+1. `fetchTest()` carga datos del test
+2. `useEffect` detecta que `test` está cargado
+3. `checkForPreviousResult()` intenta cargar último resultado
+4. Si existe: muestra vista de resultados
+5. Si no existe: muestra test para realizar
+
+**Beneficio:** Usuario nunca puede "perder" su resultado.
+
+#### 4. Navegación por Slug vs ID
+**Decisión:** Usar slug del curso para navegación.
+
+**Razones:**
+- URLs amigables: `/campus/cursos/especialista-claude-code`
+- Mejor SEO (aunque es área privada)
+- Consistencia con rutas públicas
+- Evita exponer IDs internos de BD
+
+**Mapeo de rutas:**
+```
+/campus/curso/:courseId   → Acepta ID
+/campus/cursos/:slug      → Acepta slug (PREFERIDO)
+```
+
+### Problemas Resueltos
+
+#### 1. Videos Duplicados en Base de Datos
+**Problema:** Mismo curso con lecciones duplicadas, diferentes IDs.
+
+**Diagnóstico:**
+- Script encontró 2 lecciones "Primeros pasos: Tu primer proyecto con Claude"
+- IDs diferentes pero mismo título y módulo
+- Solo una tenía el video configurado
+
+**Solución:**
+- Actualización masiva usando `updateMany` con filtros específicos
+- Actualización de ambas instancias a la vez
+
+#### 2. Timer del Test Incorrecto
+**Problema:** Mostraba 600 minutos (10 horas).
+
+**Diagnóstico:**
+- Valor en BD era 600
+- Código asumía minutos correctamente
+- Valor incorrecto en seed inicial
+
+**Solución:**
+- Update masivo de 16 tests en BD
+- Verificación de que el cálculo frontend sigue siendo correcto (minutos × 60 = segundos)
+
+#### 3. Error 404 al Volver al Curso
+**Problema:** `No routes matched location "/campus/courses/cmh7golqk0003grhvb9btupum"`
+
+**Diagnóstico:**
+- Intentaba navegar usando courseId (UUID)
+- Ruta esperaba slug (string amigable)
+- Backend no devolvía el slug del curso
+
+**Solución:**
+1. Backend: Incluir `course.slug` en respuesta
+2. Frontend: Actualizar interface
+3. Frontend: Cambiar navegación a usar slug
+
+### Estado de las Lecciones con Video
+
+```
+Módulo 1: Introducción a Claude Code
+├── Lección 1: ✅ VIDEO - Una_Revolucion_en_el_Codigo.mp4
+├── Lección 2: 📝 TEXT
+├── Lección 3: ✅ VIDEO - Tu_Primer_Proyecto_Claude.mp4
+├── Lección 4: 📝 TEXT
+└── Lección 5: 📝 TEXT
+```
+
+### Próximos Pasos Sugeridos
+
+#### 1. Sistema de Intentos Múltiples
+- Permitir reintentar test fallido
+- Guardar histórico de intentos
+- Mostrar mejor intento en calificación
+- Límite de intentos configurables
+
+#### 2. Exportar Certificado
+- Generar PDF con calificación
+- Incluir módulos completados
+- Firma digital del instituto
+- Código de verificación único
+
+#### 3. Notificaciones de Progreso
+- Email al completar módulo
+- Recordatorio de test pendiente
+- Felicitación por aprobado
+- Ánimo en suspenso
+
+#### 4. Analytics de Test
+- Preguntas más difíciles
+- Tiempo promedio por pregunta
+- Tasa de aprobación por módulo
+- Identificar áreas problemáticas
+
+#### 5. Mejoras en Videos
+- Control de velocidad de reproducción
+- Marcadores/chapters en video
+- Transcripción automática
+- Subtítulos
+
+---
+
+**Última actualización:** 26 de Octubre de 2025
+**Versión:** 1.2.0 - Sistema completo de evaluación y calificaciones
 **Estado:** En desarrollo activo

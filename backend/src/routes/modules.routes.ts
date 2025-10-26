@@ -11,6 +11,7 @@ import {
   updateLesson,
   deleteLesson,
 } from '../controllers/modules.controller';
+import { getLessonById, updateLessonProgress, getCourseProgress } from '../controllers/lessons.controller';
 import { authenticate, authorize } from '../middleware/auth';
 import { validateRequest } from '../middleware/validation';
 import { UserRole } from '@prisma/client';
@@ -66,6 +67,12 @@ router.post(
 );
 
 // Rutas de lecciones
+router.get(
+  '/lessons/:id',
+  authenticate,
+  getLessonById
+);
+
 router.post(
   '/modules/:moduleId/lessons',
   authenticate,
@@ -86,6 +93,20 @@ router.delete(
   authenticate,
   authorize(UserRole.PROFESOR, UserRole.ADMIN),
   deleteLesson
+);
+
+// Ruta para actualizar progreso de lección (estudiantes)
+router.put(
+  '/lessons/:id/progress',
+  authenticate,
+  updateLessonProgress
+);
+
+// Ruta para obtener progreso del curso
+router.get(
+  '/courses/:courseId/progress',
+  authenticate,
+  getCourseProgress
 );
 
 export default router;

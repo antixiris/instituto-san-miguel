@@ -84,6 +84,11 @@ export const getModuleTestForStudent = async (req: AuthRequest, res: Response) =
             id: true,
             title: true,
             courseId: true,
+            course: {
+              select: {
+                slug: true,
+              },
+            },
           },
         },
       },
@@ -602,6 +607,94 @@ export const getMyTestSubmissions = async (req: AuthRequest, res: Response) => {
     res.status(500).json({
       success: false,
       error: 'Error al obtener los envíos',
+    });
+  }
+};
+
+// Obtener el último resultado del test con feedback completo
+export const getLastTestResult = async (req: AuthRequest, res: Response) => {
+  try {
+    const { testId } = req.params;
+    const userId = req.user?.id;
+
+    // Obtener la última submission del usuario
+    const lastSubmission = await prisma.moduleTestSubmission.findFirst({
+      where: {
+        testId,
+        userId,
+      },
+      orderBy: {
+        attempt: 'desc',
+      },
+    });
+
+    if (!lastSubmission) {
+      return res.status(404).json({
+        success: false,
+        error: 'No se encontró ningún intento',
+      });
+    }
+
+    // Obtener el test con las preguntas
+    const test = await prisma.moduleTest.findUnique({
+      where: { id: testId },
+      include: {
+        questions: {
+          orderBy: { order: 'asc' },
+        },
+        module: {
+          select: {
+            id: true,
+            courseId: true,
+          },
+        },
+      },
+    });
+
+    if (!test) {
+      return res.status(404).json({
+        success: false,
+        error: 'Test no encontrado',
+      });
+    }
+
+    // Reconstruir el feedback
+    const answers = JSON.parse(lastSubmission.answers);
+    const feedback: any = {};
+
+    test.questions.forEach((question) => {
+      const userAnswer = answers[question.id];
+      const correctAnswer = JSON.parse(question.correctAnswer as string);
+
+      // Comparar respuestas
+      let isCorrect = false;
+      if (Array.isArray(correctAnswer) && Array.isArray(userAnswer)) {
+        isCorrect = JSON.stringify(userAnswer.sort()) === JSON.stringify(correctAnswer.sort());
+      } else {
+        isCorrect = JSON.stringify(userAnswer) === JSON.stringify(correctAnswer);
+      }
+
+      feedback[question.id] = {
+        correct: isCorrect,
+        correctAnswer,
+        explanation: question.explanation,
+        pointsEarned: isCorrect ? question.points : 0,
+      };
+    });
+
+    res.json({
+      success: true,
+      data: {
+        ...lastSubmission,
+        answers: JSON.parse(lastSubmission.answers),
+        feedback,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching last test result:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error al obtener el resultado',
     });
   }
 };

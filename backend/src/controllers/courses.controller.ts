@@ -146,13 +146,11 @@ export async function getCourseBySlug(req: AuthRequest, res: Response, next: Nex
               orderBy: {
                 order: 'asc',
               },
+            },
+            moduleTest: {
               select: {
                 id: true,
                 title: true,
-                type: true,
-                order: true,
-                isFree: true,
-                videoDuration: true,
               },
             },
           },
