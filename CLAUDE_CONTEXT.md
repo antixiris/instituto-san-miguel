@@ -1332,6 +1332,574 @@ Módulo 1: Introducción a Claude Code
 
 ---
 
-**Última actualización:** 26 de Octubre de 2025
-**Versión:** 1.2.0 - Sistema completo de evaluación y calificaciones
+## 🔄 Sesión 2 Nov 2025 - Mejoras UX Tests y Sistema de PDFs
+
+### Trabajo Realizado
+
+#### 1. Corrección Nombre "Instituto San Miguel"
+**Problema:** Faltaba la letra "l" final, se mostraba "Instituto San Migue"
+
+**Solución:**
+**Archivo:** `/frontend/src/components/campus/CampusSidebar.tsx` (línea 50)
+- Eliminada clase `overflow-hidden` que cortaba visualmente la última letra
+- Mantenida clase `whitespace-nowrap` para evitar saltos de línea
+
+#### 2. Videos Incrustados en Módulo 2
+**Lecciones actualizadas:**
+
+**Lección 4: "Generación de tests unitarios"**
+- Video: `Generación_y_Prueba_de_Código.mp4` (28MB)
+- URL: `http://localhost:3001/api/videos/Generación_y_Prueba_de_Código.mp4`
+- Script: `/backend/update-lesson4-mod2.js`
+- ID: `cmh7golrg001rgrhvc4o3vjdf`
+
+**Lección 5: "Documentación automática de código"**
+- Video: `Código_Claro_y_Entendible.mp4` (33MB)
+- URL: `http://localhost:3001/api/videos/Código_Claro_y_Entendible.mp4`
+- Script: `/backend/update-lesson5-mod2.js`
+- ID: `cmh7golri001vgrhv1qlekelx`
+
+**Implementación:**
+- Videos copiados a `/backend/public/videos/`
+- Lecciones actualizadas con `type: 'VIDEO'`
+- CORS headers configurados para streaming
+- Soporte HTTP 206 (partial content) para navegación en video
+
+#### 3. Sistema de Completado de Lecciones Mejorado
+**Archivo:** `/frontend/src/pages/campus/CourseLearningPage.tsx`
+
+**Cambio 1: Eliminada navegación automática (líneas 383-392)**
+```typescript
+// ANTES: Saltaba a siguiente lección después de 2 segundos
+// AHORA: Permanece en la lección completada
+setShowCelebration(true);
+triggerConfetti();
+setTimeout(() => setShowCelebration(false), 2000);
+// Sin navigate() automático
+```
+
+**Cambio 2: Función de validación (líneas 320-341)**
+```typescript
+const areAllPreviousLessonsCompleted = (): {
+  allCompleted: boolean;
+  pendingLessons: string[];
+}
+```
+- Verifica que todas las lecciones previas del módulo estén completadas
+- Retorna lista de lecciones pendientes por título
+
+**Cambio 3: Botón inteligente última lección (líneas 756-812)**
+```typescript
+if (allCompleted) {
+  // Botón verde "Test de evaluación"
+} else {
+  // Botón amarillo "Lecciones pendientes" + modal
+}
+```
+
+**Cambio 4: Modal de lecciones pendientes (líneas 486-517)**
+- Muestra lista de lecciones que faltan por completar
+- Previene acceso al test sin completar módulo completo
+
+**Estados añadidos (líneas 69-70):**
+```typescript
+const [showPendingLessonsAlert, setShowPendingLessonsAlert] = useState(false);
+const [pendingLessonsList, setPendingLessonsList] = useState<string[]>([]);
+```
+
+#### 4. Test Real Módulo 2 con Sistema de Tipos
+**Script:** `/backend/update-module2-test.js`
+
+**Modificación del Schema Prisma:**
+```prisma
+enum ModuleTestQuestionType {
+  SINGLE   // Una sola respuesta correcta
+  MULTIPLE // Múltiples respuestas correctas
+}
+
+model ModuleTestQuestion {
+  type ModuleTestQuestionType @default(SINGLE)
+  // ... otros campos
+}
+```
+
+**Migración aplicada:**
+```bash
+npx prisma db push  # Añade campo type + enum
+```
+
+**10 Preguntas Creadas:**
+1. Mejores prácticas prompts (SINGLE)
+2. Refactorización con IA (SINGLE)
+3. Debugging efectivo (SINGLE)
+4. Generación tests - beneficios (MULTIPLE: 2 correctas)
+5. Documentación código (SINGLE)
+6. API REST implementación (MULTIPLE: 3 correctas)
+7. Desarrollo iterativo (SINGLE)
+8. Patrones de código (MULTIPLE: 3 correctas)
+9. Cobertura tests unitarios (MULTIPLE: 3 correctas)
+10. Debugging errores complejos (SINGLE)
+
+**Distribución:** 6 SINGLE, 4 MULTIPLE = 100 puntos
+
+**Formato de datos:**
+```javascript
+{
+  question: string,
+  type: 'SINGLE' | 'MULTIPLE',
+  options: JSON.stringify(string[]),
+  correctAnswer: JSON.stringify(number[]),
+  explanation: string,
+  points: 10
+}
+```
+
+#### 5. Pantalla de Instrucciones del Test
+**Archivo:** `/frontend/src/pages/campus/ModuleTestPage.tsx`
+
+**Nuevos estados (líneas 52-53):**
+```typescript
+const [showInstructions, setShowInstructions] = useState(true);
+const [testStarted, setTestStarted] = useState(false);
+```
+
+**Control de temporizador (líneas 93-97):**
+```typescript
+useEffect(() => {
+  // Temporizador SOLO se inicia cuando testStarted === true
+  if (test?.timeLimit && timeLeft === null && testStarted) {
+    setTimeLeft(test.timeLimit * 60);
+  }
+}, [test, testStarted]);
+```
+
+**Pantalla de instrucciones (líneas 424-549):**
+- Header con gradiente naranja + icono Award
+- Tarjetas informativas:
+  - 📊 Número de preguntas
+  - ⏱️ Tiempo límite
+  - ✅ Nota mínima para aprobar
+- Sección "Importante" con 5 reglas:
+  - Temporizador se inicia al pulsar "Comenzar test"
+  - **Solo primer intento cuenta** (destacado en negrita)
+  - Se pueden revisar respuestas antes de enviar
+  - Se verán resultados y respuestas correctas
+  - Envío automático si se agota tiempo
+- Consejo: Leer cuidadosamente, algunas preguntas tienen múltiples respuestas
+- Botón "Comenzar Test" que activa `setTestStarted(true)`
+
+**Manejo resultados previos (línea 86):**
+```typescript
+setShowInstructions(false); // No mostrar instrucciones si ya hay resultados
+```
+
+#### 6. Corrección Tiempo del Test
+**Problema:** Descripción indicaba "10 minutos" pero timeLimit era 60
+
+**Script:** `/backend/fix-test-description.js`
+```typescript
+await prisma.moduleTest.update({
+  where: { id: mod2.moduleTest.id },
+  data: {
+    description: 'Responde las siguientes 10 preguntas sobre los contenidos del Módulo 2: Desarrollo Básico con Claude. Tienes 60 minutos para completar el test. Solo tu primer intento contará para la nota final.'
+  }
+});
+```
+
+**Cambio:** "10 minutos" → "60 minutos"
+
+#### 7. Sistema Checkboxes vs Radio Buttons
+**Archivo:** `/frontend/src/pages/campus/ModuleTestPage.tsx`
+
+**Función handleAnswerChange mejorada (líneas 140-170):**
+```typescript
+const handleAnswerChange = (questionId: string, optionIndex: number) => {
+  const question = test?.questions.find(q => q.id === questionId);
+
+  if (question.type === 'SINGLE') {
+    // Radio button: reemplaza selección
+    return { ...prev, [questionId]: [optionIndex] };
+  }
+
+  // Checkbox: toggle la opción
+  if (currentAnswers.includes(optionIndex)) {
+    // Quitar si ya está seleccionada
+    return { ...prev, [questionId]: currentAnswers.filter(idx => idx !== optionIndex) };
+  } else {
+    // Añadir si no está seleccionada
+    return { ...prev, [questionId]: [...currentAnswers, optionIndex] };
+  }
+};
+```
+
+**Badges informativos (líneas 683-693):**
+```tsx
+{question.type === 'MULTIPLE' && (
+  <span className="bg-blue-100 text-blue-700">
+    <Check className="w-3 h-3" />
+    Selección múltiple (puede haber más de una respuesta correcta)
+  </span>
+)}
+
+{question.type === 'SINGLE' && (
+  <span className="bg-gray-100">Respuesta única</span>
+)}
+```
+
+**Controles visuales diferenciados (líneas 713-735):**
+```tsx
+{isMultiple ? (
+  // Checkbox: cuadrado con checkmark
+  <div className="w-5 h-5 rounded">
+    {isSelected && <Check className="w-3 h-3 text-white" />}
+  </div>
+) : (
+  // Radio button: circular con punto
+  <div className="w-5 h-5 rounded-full">
+    {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
+  </div>
+)}
+```
+
+**Diseño visual:**
+- MULTIPLE: ☑️ Cuadrado con borde `rounded`
+- SINGLE: ⚫ Circular con borde `rounded-full`
+- Color activo: naranja (`border-orange-600 bg-orange-600`)
+- Color inactivo: gris (`border-gray-300`)
+
+#### 8. Reset Test para María González
+**Scripts creados:**
+
+**find-users.js:** Lista todos los usuarios en BD
+**reset-maria-complete.js:** Reset completo del test
+
+**Operaciones realizadas:**
+1. Eliminado 1 `ModuleTestSubmission` (ID: `cmhi4b08x000bkv8xydy40cab`)
+2. Eliminado 1 `GradeRecord` (ID: `cmhi4b096000dkv8xak8cvfyn`, score: 60)
+
+**Usuario:** María González
+- Email: `estudiante@institutosanmiguel.com`
+- ID: `cmgzn15c50002ouivg7qzjxbi`
+
+**Resultado:** Puede realizar el test nuevamente con checkboxes y radio buttons
+
+#### 9. Botón Descarga PDF Módulos Aprobados
+**Archivo:** `/frontend/src/pages/campus/CourseLearningPage.tsx`
+
+**Import agregado (línea 3):**
+```typescript
+import { FileDown } from 'lucide-react';
+```
+
+**Botón implementado (líneas 598-634):**
+```tsx
+{moduleGrades.has(module.id) && moduleGrades.get(module.id)! >= 5.0 && (
+  <button
+    onClick={async (e) => {
+      const response = await fetch(
+        `http://localhost:3001/api/pdf/module/${module.id}/download`,
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${module.title.replace(/\s+/g, '_')}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }
+    }}
+    className="text-orange-600 hover:bg-orange-50"
+  >
+    <FileDown className="w-3.5 h-3.5" />
+    PDF
+  </button>
+)}
+```
+
+**Características:**
+- Aparece solo si calificación >= 5.0 (aprobado)
+- Solo visible cuando columna NO está colapsada
+- Color naranja corporativo (`text-orange-600`)
+- Hover naranja claro (`hover:bg-orange-50`)
+- Icono FileDown + texto "PDF"
+- Descarga automática con nombre del módulo
+
+**Backend API:** `GET /api/pdf/module/:moduleId/download`
+- Ruta: `/backend/src/routes/pdfRoutes.ts`
+- Controlador: `/backend/src/controllers/pdfController.ts`
+- Requiere test aprobado
+- Genera PDF con contenido del módulo
+
+### Archivos Modificados
+
+#### Frontend
+```
+src/components/campus/CampusSidebar.tsx
+└── Línea 50: Eliminado overflow-hidden del nombre
+
+src/pages/campus/CourseLearningPage.tsx
+├── Línea 3: Import FileDown
+├── Líneas 69-70: Estados pendingLessons
+├── Líneas 320-341: Función areAllPreviousLessonsCompleted()
+├── Líneas 383-392: Eliminada navegación automática
+├── Líneas 486-517: Modal lecciones pendientes
+├── Líneas 598-634: Botón descarga PDF módulos aprobados
+└── Líneas 756-812: Botón inteligente Test/Lecciones pendientes
+
+src/pages/campus/ModuleTestPage.tsx
+├── Líneas 52-53: Estados showInstructions y testStarted
+├── Línea 86: Ocultación instrucciones si hay resultados
+├── Líneas 93-97: Control temporizador con testStarted
+├── Líneas 140-170: handleAnswerChange con SINGLE/MULTIPLE
+├── Líneas 424-549: Pantalla completa de instrucciones
+├── Líneas 683-693: Badges SINGLE vs MULTIPLE
+└── Líneas 713-735: Checkboxes vs Radio buttons
+```
+
+#### Backend
+```
+prisma/schema.prisma
+├── Líneas 797-801: Enum ModuleTestQuestionType
+└── Línea 808: Campo type en ModuleTestQuestion
+
+src/controllers/pdfController.ts
+├── downloadModulePDF: Genera y descarga PDF
+├── checkPDFEligibility: Verifica si puede descargar
+└── getPDFStatistics: Estadísticas de descargas
+
+src/routes/pdfRoutes.ts
+└── GET /api/pdf/module/:moduleId/download
+```
+
+#### Scripts de Base de Datos
+```
+backend/
+├── update-lesson4-mod2.js        # Video lección 4
+├── update-lesson5-mod2.js        # Video lección 5
+├── update-module2-test.js        # 10 preguntas con tipos
+├── fix-test-description.js       # Corrección 60 minutos
+├── find-users.js                 # Listar usuarios
+├── reset-maria-complete.js       # Reset test María
+└── verify-module2-state.js       # Verificación estado
+```
+
+### Decisiones Técnicas Importantes
+
+#### 1. Enum en Prisma para Tipos de Pregunta
+**Decisión:** Usar `ModuleTestQuestionType` enum en lugar de string libre
+
+**Ventajas:**
+- Type safety en TypeScript
+- Validación automática en BD
+- Valores restringidos (SINGLE, MULTIPLE)
+- Mejor autocomplete en IDE
+
+**Implementación:** `prisma db push` (desarrollo) vs `prisma migrate dev` (producción)
+
+#### 2. Control de Temporizador con Estado
+**Decisión:** Temporizador NO inicia hasta `testStarted === true`
+
+**Razones:**
+- Usuario lee instrucciones sin presión
+- Control explícito sobre cuándo empezar
+- Mejor UX - reduce ansiedad
+- Cumple requisito de pantalla previa
+
+**Flujo:**
+1. Carga test → `showInstructions = true`
+2. Usuario lee instrucciones
+3. Click "Comenzar test" → `testStarted = true`
+4. `useEffect` detecta cambio → inicia temporizador
+
+#### 3. Toggle vs Replace en Respuestas Múltiples
+**Decisión:** Checkbox con toggle (puede deseleccionar)
+
+**Comportamiento:**
+- Click en seleccionada → la quita del array
+- Click en no seleccionada → la añade al array
+- Permite corregir errores fácilmente
+
+**Implementación:**
+```typescript
+if (currentAnswers.includes(optionIndex)) {
+  return currentAnswers.filter(idx => idx !== optionIndex);
+} else {
+  return [...currentAnswers, optionIndex];
+}
+```
+
+#### 4. Validación de Lecciones Previas
+**Decisión:** Validar que TODAS las lecciones previas estén completadas antes de mostrar test
+
+**Razones:**
+- Asegura progreso lineal
+- Evita saltarse contenido importante
+- Feedback claro con lista de pendientes
+- Mejor aprovechamiento del curso
+
+**Implementación:**
+- Función: `areAllPreviousLessonsCompleted()`
+- Retorna: `{ allCompleted: boolean, pendingLessons: string[] }`
+- Botón amarillo si hay pendientes
+- Modal con lista de lecciones faltantes
+
+#### 5. PDF Solo para Módulos Aprobados
+**Decisión:** Botón descarga visible solo si `score >= 5.0`
+
+**Razones:**
+- Incentivo para aprobar
+- Control de acceso a material
+- Valor añadido para estudiantes exitosos
+- Certificación de módulo completado
+
+**Condicional:**
+```typescript
+{moduleGrades.has(module.id) && moduleGrades.get(module.id)! >= 5.0 && (
+  <button>Descargar PDF</button>
+)}
+```
+
+### Problemas Resueltos
+
+#### 1. Campo `type` No Existía en Schema
+**Problema:** Script intentaba crear preguntas con campo `type` pero causaba error de Prisma
+
+**Diagnóstico:**
+```
+Unknown argument `type`. Available options are marked with ?.
+```
+
+**Solución:**
+1. Añadir enum `ModuleTestQuestionType` al schema
+2. Añadir campo `type` a modelo `ModuleTestQuestion`
+3. Ejecutar `npx prisma db push`
+4. Regenerar Prisma Client
+5. Re-ejecutar script con éxito
+
+#### 2. Test No Reseteable para Estudiante
+**Problema:** María González no podía volver a hacer test aunque se eliminó `ModuleTestSubmission`
+
+**Diagnóstico:**
+- Submission eliminado ✓
+- Pero `GradeRecord` seguía existiendo
+- Frontend detectaba módulo como calificado
+- Bloqueaba nuevo intento
+
+**Solución:**
+```javascript
+// Eliminar AMBOS registros:
+await prisma.gradeRecord.deleteMany({
+  where: { userId: maria.id, moduleId: mod2.id }
+});
+await prisma.moduleTestSubmission.deleteMany({
+  where: { userId: maria.id, testId: testId }
+});
+```
+
+#### 3. Descripción Test Inconsistente
+**Problema:** Descripción decía "10 minutos" pero `timeLimit: 60`
+
+**Solución:** Update directo en BD
+```javascript
+await prisma.moduleTest.update({
+  data: {
+    description: '...Tienes 60 minutos...' // Cambiado de 10 a 60
+  }
+});
+```
+
+### Estado Final del Sistema
+
+#### Módulo 2 Completo
+```
+✅ 6 lecciones (2 con video, 4 texto)
+✅ Test con 10 preguntas reales
+✅ 6 preguntas SINGLE
+✅ 4 preguntas MULTIPLE
+✅ Checkboxes y radio buttons funcionando
+✅ Pantalla de instrucciones
+✅ Temporizador controlado
+✅ Validación de lecciones previas
+✅ Botón PDF para aprobados
+```
+
+#### Flujos de Usuario Validados
+
+**Flujo 1: Completar Lecciones**
+1. Estudiante completa lección → Celebración + confetti
+2. Permanece en misma lección (sin navegación automática)
+3. Navega manualmente a siguiente
+
+**Flujo 2: Acceso al Test (Completo)**
+1. Completa última lección del módulo
+2. Sistema verifica lecciones previas
+3. Si todas completadas → Botón verde "Test de evaluación"
+4. Click → Pantalla de instrucciones
+5. Lectura de reglas (sin temporizador)
+6. Click "Comenzar test" → Inicia temporizador
+7. Responde preguntas (checkboxes o radio buttons según tipo)
+8. Envía test → Resultados guardados
+
+**Flujo 3: Acceso al Test (Incompleto)**
+1. Usuario salta a última lección
+2. La completa
+3. Sistema detecta lecciones previas pendientes
+4. Botón amarillo "Lecciones pendientes"
+5. Click → Modal con lista de lecciones faltantes
+6. Debe completarlas para acceder al test
+
+**Flujo 4: Revisión de Test**
+1. Test ya realizado
+2. Click "Revisar test" (botón azul)
+3. Ve directamente resultados (sin instrucciones)
+4. Puede revisar respuestas correctas e incorrectas
+
+**Flujo 5: Descarga PDF**
+1. Módulo aprobado (nota >= 5.0)
+2. Columna lateral expandida
+3. Botón naranja "PDF" visible en header módulo
+4. Click → Descarga automática con nombre del módulo
+
+### Próximos Pasos Sugeridos
+
+#### 1. Generación Automática de PDFs
+- Implementar controlador `downloadModulePDF`
+- Plantilla PDF con logo instituto
+- Incluir: título módulo, lecciones completadas, fecha, calificación
+- Librería recomendada: `puppeteer` o `pdfkit`
+
+#### 2. Mejoras en Preguntas del Test
+- Editor visual para crear/editar preguntas (admin/profesor)
+- Pool de preguntas aleatorias (banco de preguntas)
+- Difficulty levels (fácil, media, difícil)
+- Imágenes en preguntas
+- Code snippets con syntax highlighting
+
+#### 3. Analytics de Tests
+- Tiempo promedio por pregunta
+- Preguntas con más errores
+- Tasa de aprobación por módulo
+- Correlación nota test vs tiempo dedicado
+
+#### 4. Módulos Restantes
+- Crear tests para módulos 3-8
+- Añadir más videos a lecciones
+- Generar preguntas basadas en contenido real
+- Validar consistencia de dificultad
+
+#### 5. Sistema de Reintentos
+- Permitir múltiples intentos (configurables)
+- Guardar mejor intento
+- Mostrar histórico de intentos
+- Cooldown entre intentos (ej: 24h)
+
+---
+
+**Última actualización:** 2 de Noviembre de 2025
+**Versión:** 1.3.0 - Sistema completo de tests con UX mejorada y descarga de PDFs
 **Estado:** En desarrollo activo

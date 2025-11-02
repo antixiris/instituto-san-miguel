@@ -49,6 +49,8 @@ export default function ModuleTestPage() {
   const [submitting, setSubmitting] = useState(false);
   const [results, setResults] = useState<TestResults | null>(null);
   const [showResults, setShowResults] = useState(false);
+  const [showInstructions, setShowInstructions] = useState(true);
+  const [testStarted, setTestStarted] = useState(false);
 
   useEffect(() => {
     fetchTest();
@@ -81,6 +83,7 @@ export default function ModuleTestPage() {
         });
         setAnswers(data.data.answers);
         setShowResults(true);
+        setShowInstructions(false); // No mostrar instrucciones si ya hay resultados
       }
     } catch (err: any) {
       // Si no hay resultado anterior, simplemente continuar normalmente
@@ -89,10 +92,10 @@ export default function ModuleTestPage() {
   };
 
   useEffect(() => {
-    if (test?.timeLimit && timeLeft === null) {
+    if (test?.timeLimit && timeLeft === null && testStarted) {
       setTimeLeft(test.timeLimit * 60); // Convertir minutos a segundos
     }
-  }, [test]);
+  }, [test, testStarted]);
 
   useEffect(() => {
     if (timeLeft === null || timeLeft <= 0) return;
@@ -135,10 +138,35 @@ export default function ModuleTestPage() {
   };
 
   const handleAnswerChange = (questionId: string, optionIndex: number) => {
-    setAnswers(prev => ({
-      ...prev,
-      [questionId]: [optionIndex]
-    }));
+    const question = test?.questions.find(q => q.id === questionId);
+    if (!question) return;
+
+    setAnswers(prev => {
+      const currentAnswers = prev[questionId] || [];
+
+      // Para preguntas SINGLE: reemplazar la respuesta
+      if (question.type === 'SINGLE') {
+        return {
+          ...prev,
+          [questionId]: [optionIndex]
+        };
+      }
+
+      // Para preguntas MULTIPLE: toggle la opción
+      if (currentAnswers.includes(optionIndex)) {
+        // Quitar la opción si ya está seleccionada
+        return {
+          ...prev,
+          [questionId]: currentAnswers.filter(idx => idx !== optionIndex)
+        };
+      } else {
+        // Añadir la opción
+        return {
+          ...prev,
+          [questionId]: [...currentAnswers, optionIndex]
+        };
+      }
+    });
   };
 
   const handleSubmit = async () => {
@@ -419,6 +447,133 @@ export default function ModuleTestPage() {
     );
   }
 
+  // Pantalla de instrucciones
+  if (showInstructions) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 py-8">
+        <div className="max-w-3xl mx-auto px-4">
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-orange-600 dark:hover:text-orange-500 mb-6"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            <span>Volver al curso</span>
+          </button>
+
+          <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-orange-500 to-orange-600 p-8 text-white">
+              <div className="flex items-center gap-4 mb-4">
+                <Award className="w-16 h-16" />
+                <div>
+                  <h1 className="text-3xl font-bold">{test.title}</h1>
+                  <p className="text-orange-100 mt-1">{test.module.title}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Instrucciones */}
+            <div className="p-8">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6 flex items-center gap-2">
+                <AlertCircle className="w-6 h-6 text-orange-600" />
+                Instrucciones del Test
+              </h2>
+
+              <div className="space-y-6 mb-8">
+                {/* Descripción */}
+                {test.description && (
+                  <div>
+                    <p className="text-gray-600 dark:text-gray-400">{test.description}</p>
+                  </div>
+                )}
+
+                {/* Información del test */}
+                <div className="grid md:grid-cols-3 gap-4">
+                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Award className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                      <span className="text-sm font-medium text-blue-900 dark:text-blue-100">Preguntas</span>
+                    </div>
+                    <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">{test.questions.length}</p>
+                  </div>
+
+                  {test.timeLimit && (
+                    <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Clock className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+                        <span className="text-sm font-medium text-orange-900 dark:text-orange-100">Tiempo límite</span>
+                      </div>
+                      <p className="text-2xl font-bold text-orange-700 dark:text-orange-300">{test.timeLimit} min</p>
+                    </div>
+                  )}
+
+                  <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
+                      <span className="text-sm font-medium text-green-900 dark:text-green-100">Nota mínima</span>
+                    </div>
+                    <p className="text-2xl font-bold text-green-700 dark:text-green-300">{test.passingScore}/10</p>
+                  </div>
+                </div>
+
+                {/* Reglas */}
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-6">
+                  <h3 className="font-semibold text-yellow-900 dark:text-yellow-100 mb-4 flex items-center gap-2">
+                    <AlertCircle className="w-5 h-5" />
+                    Importante
+                  </h3>
+                  <ul className="space-y-3 text-yellow-800 dark:text-yellow-200">
+                    <li className="flex items-start gap-2">
+                      <Check className="w-5 h-5 mt-0.5 flex-shrink-0" />
+                      <span>Al pulsar "Comenzar test", el temporizador se iniciará automáticamente.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Check className="w-5 h-5 mt-0.5 flex-shrink-0" />
+                      <span><strong>Solo el primer intento cuenta para la calificación final</strong> del módulo.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Check className="w-5 h-5 mt-0.5 flex-shrink-0" />
+                      <span>Puedes revisar y cambiar tus respuestas antes de enviar el test.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Check className="w-5 h-5 mt-0.5 flex-shrink-0" />
+                      <span>Una vez enviado, podrás ver tus resultados y las respuestas correctas.</span>
+                    </li>
+                    {test.timeLimit && (
+                      <li className="flex items-start gap-2">
+                        <Check className="w-5 h-5 mt-0.5 flex-shrink-0" />
+                        <span>El test se enviará automáticamente cuando se agote el tiempo.</span>
+                      </li>
+                    )}
+                  </ul>
+                </div>
+
+                {/* Consejo */}
+                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6">
+                  <p className="text-gray-700 dark:text-gray-300">
+                    <strong>Consejo:</strong> Lee cuidadosamente cada pregunta antes de responder. Algunas preguntas pueden tener múltiples respuestas correctas.
+                  </p>
+                </div>
+              </div>
+
+              {/* Botón comenzar */}
+              <button
+                onClick={() => {
+                  setShowInstructions(false);
+                  setTestStarted(true);
+                }}
+                className="w-full py-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold text-lg rounded-lg transition-all transform hover:scale-[1.02] flex items-center justify-center gap-3"
+              >
+                <Award className="w-6 h-6" />
+                Comenzar Test
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 py-8">
       <div className="max-w-4xl mx-auto px-4">
@@ -521,14 +676,29 @@ export default function ModuleTestPage() {
                 <span className="flex-shrink-0 w-8 h-8 rounded-full bg-orange-100 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 font-bold flex items-center justify-center text-sm">
                   {index + 1}
                 </span>
-                <p className="text-lg text-gray-900 dark:text-gray-100 font-medium">
-                  {question.question}
-                </p>
+                <div className="flex-1">
+                  <p className="text-lg text-gray-900 dark:text-gray-100 font-medium mb-2">
+                    {question.question}
+                  </p>
+                  {question.type === 'MULTIPLE' && (
+                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 text-xs font-medium rounded">
+                      <Check className="w-3 h-3" />
+                      Selección múltiple (puede haber más de una respuesta correcta)
+                    </span>
+                  )}
+                  {question.type === 'SINGLE' && (
+                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs font-medium rounded">
+                      Respuesta única
+                    </span>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-3 pl-11">
                 {question.options.map((option, optionIndex) => {
                   const isSelected = answers[question.id]?.includes(optionIndex);
+                  const isMultiple = question.type === 'MULTIPLE';
+
                   return (
                     <button
                       key={optionIndex}
@@ -540,15 +710,29 @@ export default function ModuleTestPage() {
                       }`}
                     >
                       <div className="flex items-start gap-3">
-                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5 ${
-                          isSelected
-                            ? 'border-orange-600 bg-orange-600'
-                            : 'border-gray-300 dark:border-gray-700'
-                        }`}>
-                          {isSelected && (
-                            <div className="w-2 h-2 rounded-full bg-white" />
-                          )}
-                        </div>
+                        {isMultiple ? (
+                          // Checkbox para preguntas de selección múltiple
+                          <div className={`w-5 h-5 rounded border-2 flex items-center justify-center mt-0.5 ${
+                            isSelected
+                              ? 'border-orange-600 bg-orange-600'
+                              : 'border-gray-300 dark:border-gray-700'
+                          }`}>
+                            {isSelected && (
+                              <Check className="w-3 h-3 text-white" />
+                            )}
+                          </div>
+                        ) : (
+                          // Radio button para preguntas de respuesta única
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5 ${
+                            isSelected
+                              ? 'border-orange-600 bg-orange-600'
+                              : 'border-gray-300 dark:border-gray-700'
+                          }`}>
+                            {isSelected && (
+                              <div className="w-2 h-2 rounded-full bg-white" />
+                            )}
+                          </div>
+                        )}
                         <span className="text-gray-900 dark:text-gray-100">{option}</span>
                       </div>
                     </button>

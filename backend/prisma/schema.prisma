@@ -131,6 +131,7 @@ model User {
   gameExerciseSubmissions GameExerciseSubmission[]
   moduleTestSubmissions   ModuleTestSubmission[]
   gradeRecords            GradeRecord[]
+  pdfDownloads            PDFDownload[]
 
   @@index([email])
   @@index([role])
@@ -230,9 +231,10 @@ model Module {
   updatedAt   DateTime @updatedAt
 
   // Relaciones
-  course     Course      @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  lessons    Lesson[]
-  moduleTest ModuleTest?
+  course       Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons      Lesson[]
+  moduleTest   ModuleTest?
+  pdfDownloads PDFDownload[]
 
   @@index([courseId])
   @@map("modules")
@@ -792,18 +794,25 @@ model ModuleTest {
   @@map("module_tests")
 }
 
+// Tipo de pregunta de test de módulo
+enum ModuleTestQuestionType {
+  SINGLE   // Una sola respuesta correcta
+  MULTIPLE // Múltiples respuestas correctas
+}
+
 // Pregunta de Test de Módulo
 model ModuleTestQuestion {
-  id            String   @id @default(cuid())
+  id            String                  @id @default(cuid())
   testId        String
-  question      String   @db.Text
-  options       String   @db.Text // JSON array con las opciones
-  correctAnswer String   @db.Text // JSON array con índices de respuestas correctas
-  explanation   String?  @db.Text // Explicación de la respuesta correcta
+  question      String                  @db.Text
+  type          ModuleTestQuestionType  @default(SINGLE) // Tipo de pregunta
+  options       String                  @db.Text // JSON array con las opciones
+  correctAnswer String                  @db.Text // JSON array con índices de respuestas correctas
+  explanation   String?                 @db.Text // Explicación de la respuesta correcta
   order         Int
-  points        Float    @default(1.0) // Puntos de esta pregunta (total debe sumar 10)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  points        Float                   @default(1.0) // Puntos de esta pregunta (total debe sumar 10)
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
 
   // Relaciones
   test ModuleTest @relation(fields: [testId], references: [id], onDelete: Cascade)
@@ -856,4 +865,20 @@ model GradeRecord {
   @@index([courseId])
   @@index([moduleId])
   @@map("grade_records")
+}
+
+// Registro de Descargas de PDFs
+model PDFDownload {
+  id           String   @id @default(cuid())
+  studentId    String
+  moduleId     String
+  downloadedAt DateTime @default(now())
+
+  // Relaciones
+  student User   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  module  Module @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@index([moduleId])
+  @@map("pdf_downloads")
 }
