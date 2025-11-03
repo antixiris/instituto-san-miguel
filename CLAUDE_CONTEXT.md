@@ -1900,6 +1900,338 @@ await prisma.moduleTest.update({
 
 ---
 
-**Última actualización:** 2 de Noviembre de 2025
-**Versión:** 1.3.0 - Sistema completo de tests con UX mejorada y descarga de PDFs
+---
+
+## 🔄 Sesión 3 Nov 2025 - Corrección de Documentación de Videos
+
+### Trabajo Realizado
+
+#### 1. Identificación de Contradicción en Documentación
+**Problema:** Los documentos sobre incrustación de videos contenían información contradictoria sobre el formato de URL correcto.
+
+**Documentos afectados:**
+- `GUIA_INCRUSTACION_VIDEOS.md` - Recomendaba URLs relativas ✅
+- `SOLUCION_PROBLEMA_VIDEOS_MODULO3.md` - Recomendaba URLs absolutas ❌
+
+**Contradicción detectada:**
+```markdown
+# GUIA_INCRUSTACION_VIDEOS.md (CORRECTO)
+videoUrl: '/videos/Nombre_Del_Video.mp4'
+
+# SOLUCION_PROBLEMA_VIDEOS_MODULO3.md (INCORRECTO)
+videoUrl: 'http://localhost:3001/videos/Nombre_Del_Video.mp4'
+```
+
+#### 2. Actualización de SOLUCION_PROBLEMA_VIDEOS_MODULO3.md
+**Archivo:** `/backend/SOLUCION_PROBLEMA_VIDEOS_MODULO3.md`
+
+**Secciones corregidas:**
+
+**Causa Raíz (líneas 12-22):**
+- **Antes:** "URLs relativas son incorrectas, usar absolutas"
+- **Después:** "URLs relativas necesitan proxy de Vite configurado"
+- Añadida explicación de la necesidad del proxy
+
+**Diagnóstico (líneas 28-56):**
+- Eliminada comparación confusa entre módulos
+- Añadida explicación de configuración del proxy
+- Código de ejemplo del `vite.config.ts` correcto e incorrecto
+
+**Solución Aplicada (líneas 60-109):**
+- Eliminadas referencias a URLs absolutas
+- Documentado el cambio de configuración del proxy de Vite
+- Explicado que URLs relativas funcionan en desarrollo y producción
+- Actualizada tabla de videos con URLs relativas
+
+**Proceso para Futuros Módulos (líneas 127-162):**
+- Regla de oro: URLs relativas `/videos/...`
+- Explicación de por qué (desarrollo + producción)
+- Template actualizado
+- Checklist con verificación del proxy
+
+**Estado Final (líneas 195-211):**
+- Todos los módulos (1, 2, 3) funcionando con URLs relativas
+- Total: 12 videos con formato consistente
+
+**Lecciones Aprendidas (líneas 222-228):**
+- URLs relativas + proxy de Vite es la solución
+- Proxy debe incluir `/videos` además de `/api`
+- Reiniciar servidor frontend después de cambios en `vite.config.ts`
+
+#### 3. Actualización de GUIA_INCRUSTACION_VIDEOS.md
+**Archivo:** `/backend/GUIA_INCRUSTACION_VIDEOS.md`
+
+**Solución de Problemas (líneas 270-305):**
+- Añadida "Proxy no configurado" como primera causa común
+- Instrucciones para verificar configuración del proxy
+- Paso de reiniciar servidor frontend tras cambios
+- Código de ejemplo del proxy en `vite.config.ts`
+
+**Checklist de Incrustación (líneas 309-321):**
+- Añadida verificación del proxy como segundo ítem
+- Confirmado uso de URLs relativas
+
+#### 4. Actualización de Scripts Obsoletos
+
+**fix-module1-video-urls.js (líneas 30-50):**
+```javascript
+// ANTES: Convertía relativas → absolutas
+const newUrl = `http://localhost:3001${lesson.videoUrl}`;
+
+// DESPUÉS: Normaliza absolutas → relativas
+newUrl = lesson.videoUrl.replace('http://localhost:3001', '');
+```
+
+**Características:**
+- Ahora revierte URLs absolutas a relativas
+- Detecta URLs con `localhost:3001` y las limpia
+- Muestra mensaje si ya tiene URL relativa correcta
+
+**fix-module3-video-urls.js (líneas 30-57):**
+```javascript
+// ANTES: videoUrl: 'http://localhost:3001/videos/...'
+// DESPUÉS: videoUrl: '/videos/...'
+```
+
+**Características:**
+- Todos los mapeos actualizados a URLs relativas
+- Comentario explicativo sobre desarrollo y producción
+
+#### 5. Documento de Corrección Creado
+**Archivo:** `/backend/CORRECCION_DOCUMENTACION_VIDEOS.md` (NUEVO)
+
+**Contenido:**
+- Resumen del problema identificado
+- Cambios realizados en cada documento
+- Explicación de la solución correcta
+- Ventajas de URLs relativas
+- Lista de archivos modificados
+- Lecciones aprendidas
+- Comandos de verificación
+
+**Secciones principales:**
+1. 🎯 Resumen
+2. 🔴 Problema Identificado
+3. ✅ Solución Aplicada
+4. 📊 Estado Final
+5. 📚 Archivos Modificados
+6. 🎓 Lecciones Aprendidas
+7. ✅ Verificación
+
+### Decisiones Técnicas Documentadas
+
+#### 1. Formato Estándar de URL para Videos
+
+**Decisión:** URLs relativas como estándar único
+```
+/videos/Nombre_Del_Video.mp4
+```
+
+**Razones:**
+1. ✅ Funciona en desarrollo (con proxy de Vite)
+2. ✅ Funciona en producción (sin cambios)
+3. ✅ No hardcodea `localhost:3001`
+4. ✅ Portabilidad entre entornos
+5. ✅ Sin modificaciones al deployar
+
+**Configuración necesaria:**
+```typescript
+// frontend/vite.config.ts
+server: {
+  proxy: {
+    '/api': {
+      target: 'http://localhost:3001',
+      changeOrigin: true
+    },
+    '/videos': {  // ← NECESARIO
+      target: 'http://localhost:3001',
+      changeOrigin: true
+    }
+  }
+}
+```
+
+#### 2. Documentación Consistente
+
+**Principio:** Un solo formato recomendado en todos los documentos
+
+**Implementación:**
+- `GUIA_INCRUSTACION_VIDEOS.md` - Guía principal (URLs relativas)
+- `SOLUCION_PROBLEMA_VIDEOS_MODULO3.md` - Caso de estudio (URLs relativas)
+- `CORRECCION_DOCUMENTACION_VIDEOS.md` - Documento de cambios
+- Scripts de ejemplo actualizados con URLs relativas
+
+**Beneficio:** Evita confusión al implementar nuevos módulos con videos
+
+### Archivos Modificados
+
+#### Documentación
+```
+backend/
+├── SOLUCION_PROBLEMA_VIDEOS_MODULO3.md
+│   ├── Líneas 12-22: Causa raíz actualizada
+│   ├── Líneas 28-56: Diagnóstico con proxy
+│   ├── Líneas 60-109: Solución con proxy Vite
+│   ├── Líneas 115-121: Tabla URLs relativas
+│   ├── Líneas 127-162: Proceso futuros módulos
+│   ├── Líneas 195-211: Estado final
+│   └── Líneas 222-228: Lecciones aprendidas
+│
+├── GUIA_INCRUSTACION_VIDEOS.md
+│   ├── Líneas 270-305: Solución problemas con proxy
+│   └── Líneas 309-321: Checklist actualizado
+│
+└── CORRECCION_DOCUMENTACION_VIDEOS.md (NUEVO - 360 líneas)
+    ├── Resumen de cambios
+    ├── Problema identificado
+    ├── Solución aplicada
+    ├── Estado final
+    └── Comandos de verificación
+```
+
+#### Scripts
+```
+backend/
+├── fix-module1-video-urls.js
+│   └── Líneas 30-50: Lógica invertida (absoluta → relativa)
+│
+└── fix-module3-video-urls.js
+    └── Líneas 30-57: URLs relativas en videoMapping
+```
+
+### Estado del Sistema de Videos
+
+#### Videos Incrustados por Módulo
+```
+Módulo 1: 2 videos ✅
+├── Lección 1: Una_Revolucion_en_el_Codigo.mp4
+└── Lección 3: Tu_Primer_Proyecto_Claude.mp4
+
+Módulo 2: 5 videos ✅
+├── Lección 1: El_Arte_de_Programar_con_IA.mp4
+├── Lección 2: Navegando_Claude_Code.mp4
+├── Lección 3: Refactorización_con_IA.mp4
+├── Lección 4: Generación_y_Prueba_de_Código.mp4
+└── Lección 5: Código_Claro_y_Entendible.mp4
+
+Módulo 3: 5 videos ✅
+├── Lección 1: Prompting_Efectivo.mp4
+├── Lección 2: El_Poder_del_Contexto.mp4
+├── Lección 3: El_Arte_de_Mejorar_el_Código.mp4
+├── Lección 4: Manejo_de_Proyectos_Complejos.mp4
+└── Lección 5: Patrones_de_Diseño_Esenciales.mp4
+
+Total: 12 videos | Todos con URLs relativas
+```
+
+#### Configuración Validada
+```
+✅ Backend sirve videos desde /videos/ (línea 123 index.ts)
+✅ CORS headers configurados para streaming
+✅ Accept-Ranges: bytes para navegación en video
+✅ Frontend proxy /videos configurado (vite.config.ts)
+✅ Todas las URLs en formato relativo /videos/...
+```
+
+### Flujo de Incrustación de Videos Documentado
+
+#### Para Nuevos Módulos
+
+**1. Verificar Video:**
+```bash
+ls -lh /videos/Nombre_Del_Video.mp4
+```
+
+**2. Probar Accesibilidad:**
+```bash
+curl -I http://localhost:3001/videos/Nombre_Del_Video.mp4
+# Debe retornar: HTTP/1.1 200 OK
+```
+
+**3. Calcular Duración:**
+```
+27 minutos = 1620 segundos
+36 minutos = 2160 segundos
+```
+
+**4. Crear Script:**
+```javascript
+const videoMapping = [
+  {
+    order: 1,
+    videoUrl: '/videos/Nombre_Video.mp4',  // ← URL RELATIVA
+    duration: 1620 // segundos
+  }
+];
+```
+
+**5. Ejecutar:**
+```bash
+cd backend && node update-moduloX-videos.js
+```
+
+**6. Verificar en Navegador:**
+- Acceder a la lección
+- Comprobar que el video se carga
+- Probar controles de reproducción
+
+### Comandos de Verificación
+
+**Verificar proxy configurado:**
+```bash
+cat frontend/vite.config.ts | grep -A 3 '/videos'
+```
+
+**Verificar URLs en BD:**
+```bash
+cd backend && node -e "
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
+prisma.lesson.findMany({ where: { type: 'VIDEO' } }).then(lessons => {
+  lessons.forEach(l => console.log(l.title, '→', l.videoUrl));
+  prisma.\$disconnect();
+});
+"
+```
+
+**Resultado esperado:**
+- Proxy `/videos` presente en `vite.config.ts`
+- Todas las URLs con formato `/videos/Nombre.mp4`
+
+### Lecciones Aprendidas
+
+1. **Documentación contradictoria** puede causar errores al implementar nuevos módulos
+2. **Scripts de ejemplo** deben reflejar las mejores prácticas documentadas
+3. **La solución correcta** es URLs relativas + proxy de Vite
+4. **URLs absolutas con localhost** causan problemas en producción
+5. **Revisar documentación existente** antes de crear nueva para evitar inconsistencias
+
+### Próximos Pasos Sugeridos
+
+#### 1. Validar Videos Módulos 4-8
+- Verificar que no existan videos con URLs absolutas
+- Actualizar si se encuentran inconsistencias
+- Documentar módulos completados
+
+#### 2. Sistema de Transcripciones
+- Generar subtítulos automáticos para videos
+- Almacenar en formato VTT
+- Mostrar en reproductor HTML5
+- Mejorar accesibilidad
+
+#### 3. Control de Velocidad de Reproducción
+- Añadir controles 0.5x, 1x, 1.25x, 1.5x, 2x
+- Persistir preferencia del usuario
+- Mejorar UX del reproductor
+
+#### 4. Marcadores en Videos
+- Sistema de chapters/marcadores
+- Navegación rápida a secciones
+- Mostrar en barra de progreso
+- Exportar timestamps
+
+---
+
+**Última actualización:** 3 de Noviembre de 2025
+**Versión:** 1.3.1 - Corrección de documentación de incrustación de videos
 **Estado:** En desarrollo activo

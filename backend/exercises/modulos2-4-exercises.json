@@ -1,0 +1,537 @@
+{
+  "modules": ["Módulo 2", "Módulo 3", "Módulo 4"],
+  "exercises": [
+    {
+      "id": "m2-ex-1",
+      "moduleId": "2",
+      "lessonId": "2.1",
+      "type": "MULTIPLE_CHOICE",
+      "title": "Análisis y Comprensión de Código",
+      "instructions": "Selecciona las respuestas correctas sobre técnicas de análisis de código con Claude Code.",
+      "points": 15,
+      "timeLimit": 600,
+      "config": {
+        "questions": [
+          {
+            "id": "q1",
+            "question": "¿Cuál es la mejor estrategia para explorar un codebase desconocido con Claude Code?",
+            "options": [
+              "Leer todo el código línea por línea manualmente",
+              "Pedirle a Claude Code que analice entry points y trace flujos principales",
+              "Buscar la documentación externa primero",
+              "Ejecutar el código y ver qué pasa"
+            ],
+            "correctAnswer": 1,
+            "explanation": "Claude Code puede analizar automáticamente entry points (ej: main.ts, index.js) y trazar flujos de ejecución principales, proporcionando un mapa mental del codebase mucho más rápido que la lectura manual."
+          },
+          {
+            "id": "q2",
+            "question": "Para generar documentación de arquitectura de un proyecto, ¿qué comando es más efectivo?",
+            "options": [
+              "claude analyze --output docs",
+              "Pregunta en lenguaje natural: 'Analiza la arquitectura y crea un diagrama de componentes'",
+              "cat README.md",
+              "npm run docs"
+            ],
+            "correctAnswer": 1,
+            "explanation": "Claude Code funciona mejor con instrucciones en lenguaje natural. Puede analizar el codebase, identificar componentes principales, relaciones y generar diagramas (mermaid, ASCII) automáticamente."
+          },
+          {
+            "id": "q3",
+            "question": "¿Qué herramienta de Claude Code te permite explorar dependencias entre archivos?",
+            "options": [
+              "El comando /dependencies",
+              "Grep y análisis de imports con subagente Explore",
+              "Solo mirando package.json",
+              "Claude Code no puede hacer esto"
+            ],
+            "correctAnswer": 1,
+            "explanation": "El subagente Explore de Claude Code puede hacer grep de imports, analizar módulos y rastrear dependencias entre archivos, creando un grafo de dependencias del proyecto."
+          },
+          {
+            "id": "q4",
+            "question": "Si necesitas entender cómo funciona un endpoint API en un backend Express, ¿qué le preguntarías a Claude Code?",
+            "options": [
+              "'¿Qué hace este código?'",
+              "'Traza el flujo completo del endpoint POST /api/users desde el router hasta la base de datos'",
+              "'Explica Express'",
+              "'Dame el código del archivo'"
+            ],
+            "correctAnswer": 1,
+            "explanation": "Ser específico con el flujo que quieres entender (endpoint, método, camino completo) permite a Claude Code trazar toda la cadena: router → middleware → controller → service → database, con explicaciones en cada paso."
+          }
+        ]
+      }
+    },
+    {
+      "id": "m2-ex-2",
+      "moduleId": "2",
+      "lessonId": "2.2",
+      "type": "CODE_CHALLENGE",
+      "title": "Debugging con Stack Traces",
+      "instructions": "Dado un stack trace de error, identifica el problema y propón una solución usando Claude Code.",
+      "points": 25,
+      "timeLimit": 900,
+      "config": {
+        "challenge": "Se te presenta el siguiente error en producción:\n\n```\nTypeError: Cannot read property 'id' of undefined\n    at getUserOrders (src/services/orderService.ts:45:28)\n    at processCheckout (src/controllers/checkoutController.ts:112:15)\n    at Layer.handle [as handle_request] (express/lib/router/layer.js:95:5)\n    at next (express/lib/router/route.js:137:13)\n    at authMiddleware (src/middleware/auth.ts:23:5)\n```\n\n**Contexto adicional:**\n- La aplicación es un e-commerce\n- El error ocurre al hacer checkout\n- Solo pasa con algunos usuarios (intermitente)\n\n**Tareas:**\n1. Analiza el stack trace e identifica el punto exacto del error\n2. Formula una pregunta específica para Claude Code que incluya el contexto necesario\n3. Propón un plan de debugging en 3 pasos\n4. Escribe un test que reproduzca este error\n5. Propón una solución que maneje este edge case",
+        "validation": {
+          "requiredElements": [
+            "orderService.ts:45",
+            "user.id",
+            "null check",
+            "test case",
+            "optional chaining"
+          ],
+          "stepsToPlan": [
+            "1. Inspeccionar orderService.ts línea 45",
+            "2. Verificar si user puede ser null/undefined",
+            "3. Agregar validación y manejo de error"
+          ]
+        },
+        "solution": "# Análisis del Stack Trace\n\nEl error ocurre en `orderService.ts:45` intentando acceder a `user.id` cuando `user` es `undefined`.\n\n# Pregunta para Claude Code:\n\n\"Tengo un error 'Cannot read property id of undefined' en orderService.ts:45. El error ocurre durante checkout y es intermitente. Analiza el flujo completo desde checkoutController hasta orderService, identifica dónde user podría ser undefined, y propón una solución con validación apropiada.\"\n\n# Plan de Debugging:\n\n1. **Inspeccionar código:**\n   ```typescript\n   // orderService.ts:45\n   const userId = user.id; // ❌ user puede ser undefined\n   ```\n\n2. **Identificar causa raíz:**\n   - authMiddleware puede fallar silenciosamente\n   - Usuario puede ser deslogueado entre operaciones\n   - Token expirado no manejado\n\n3. **Reproducir con test:**\n   ```typescript\n   it('should handle checkout with expired session', async () => {\n     const expiredToken = generateExpiredToken();\n     const response = await request(app)\n       .post('/api/checkout')\n       .set('Authorization', `Bearer ${expiredToken}`);\n\n     expect(response.status).toBe(401);\n     expect(response.body.error).toBe('Session expired');\n   });\n   ```\n\n# Solución:\n\n```typescript\n// orderService.ts\nexport async function getUserOrders(user?: User) {\n  // Validación explícita\n  if (!user || !user.id) {\n    throw new UnauthorizedError('Valid user session required');\n  }\n\n  const userId = user.id;\n  // ... resto del código\n}\n\n// checkoutController.ts\nexport async function processCheckout(req: Request, res: Response) {\n  try {\n    // Verificar user antes de llamar service\n    if (!req.user) {\n      return res.status(401).json({ error: 'Authentication required' });\n    }\n\n    const orders = await getUserOrders(req.user);\n    // ... resto\n  } catch (error) {\n    if (error instanceof UnauthorizedError) {\n      return res.status(401).json({ error: error.message });\n    }\n    // Handle other errors\n  }\n}\n```\n\n**Mejoras adicionales:**\n- Usar optional chaining: `user?.id`\n- Agregar logging para debugging futuro\n- Renovar token automáticamente si está por expirar",
+        "rubric": {
+          "analysis": 5,
+          "claude_question": 5,
+          "debugging_plan": 5,
+          "test_case": 5,
+          "solution": 5
+        }
+      }
+    },
+    {
+      "id": "m2-ex-3",
+      "moduleId": "2",
+      "lessonId": "2.4",
+      "type": "DRAG_DROP",
+      "title": "Orden de Implementación de Feature",
+      "instructions": "Ordena los pasos correctos para implementar una feature completa 'Autenticación con Google OAuth' usando Claude Code.",
+      "points": 20,
+      "timeLimit": 480,
+      "config": {
+        "items": [
+          { "id": "step1", "text": "Planificar arquitectura: identificar endpoints, modelos, servicios necesarios" },
+          { "id": "step2", "text": "Configurar OAuth credentials en Google Cloud Console" },
+          { "id": "step3", "text": "Instalar dependencias: passport, passport-google-oauth20" },
+          { "id": "step4", "text": "Crear modelo User con campos googleId, email, profile" },
+          { "id": "step5", "text": "Implementar estrategia de Passport para Google" },
+          { "id": "step6", "text": "Crear rutas /auth/google y /auth/google/callback" },
+          { "id": "step7", "text": "Implementar middleware de sesión y serialización de usuario" },
+          { "id": "step8", "text": "Crear tests de integración para flujo OAuth completo" },
+          { "id": "step9", "text": "Actualizar frontend con botón 'Sign in with Google'" },
+          { "id": "step10", "text": "Documentar en README: setup, variables de entorno, flujo" }
+        ],
+        "correctOrder": ["step1", "step2", "step3", "step4", "step5", "step7", "step6", "step8", "step9", "step10"],
+        "explanation": "El orden correcto sigue un flujo lógico: 1) Planificar, 2) Configurar servicios externos, 3) Instalar deps, 4) Modelo de datos, 5) Lógica de autenticación (estrategia), 6) Middleware (sesiones), 7) Rutas (endpoints), 8) Tests, 9) Frontend, 10) Documentación. Claude Code puede guiarte en cada paso con prompts específicos."
+      }
+    },
+    {
+      "id": "m2-ex-4",
+      "moduleId": "2",
+      "lessonId": "2.6",
+      "type": "MATCHING_PAIRS",
+      "title": "Comandos de Git y PR con Claude Code",
+      "instructions": "Empareja cada tarea de Git/PR con el comando o prompt correcto para Claude Code.",
+      "points": 15,
+      "timeLimit": 420,
+      "config": {
+        "pairs": [
+          {
+            "left": "Crear un commit con mensaje descriptivo",
+            "right": "'claude commit' o 'Crea commit para los cambios de autenticación'"
+          },
+          {
+            "left": "Crear Pull Request con descripción completa",
+            "right": "'claude pr create' con template automático de descripción"
+          },
+          {
+            "left": "Revisar código de un PR antes de merge",
+            "right": "'Revisa el PR #123 para seguridad y mejores prácticas'"
+          },
+          {
+            "left": "Resolver conflictos de merge",
+            "right": "'Ayúdame a resolver conflictos en src/auth.ts manteniendo ambas features'"
+          },
+          {
+            "left": "Generar CHANGELOG automático",
+            "right": "'Genera CHANGELOG desde v1.0.0 hasta HEAD agrupando por tipo de cambio'"
+          },
+          {
+            "left": "Crear branch siguiendo convención",
+            "right": "'git checkout -b feature/google-oauth' o 'Crea branch para OAuth feature'"
+          }
+        ],
+        "explanation": "Claude Code integra Git workflows: puede crear commits con mensajes contextuales, PRs con descripciones detalladas basadas en los cambios, revisar código de otros PRs, ayudar con conflictos y generar documentación de cambios automáticamente."
+      }
+    },
+    {
+      "id": "m3-ex-1",
+      "moduleId": "3",
+      "lessonId": "3.1",
+      "type": "MULTIPLE_CHOICE",
+      "title": "Slash Commands Built-in",
+      "instructions": "Identifica el slash command correcto para cada escenario.",
+      "points": 15,
+      "timeLimit": 480,
+      "config": {
+        "questions": [
+          {
+            "id": "q1",
+            "question": "Necesitas cambiar el modelo de Claude que estás usando de Sonnet a Opus. ¿Qué comando usas?",
+            "options": [
+              "/switch-model opus",
+              "/model",
+              "/config model=opus",
+              "/opus"
+            ],
+            "correctAnswer": 1,
+            "explanation": "El comando /model abre el selector interactivo de modelos donde puedes cambiar entre Sonnet, Opus, Haiku según tus necesidades (velocidad vs capacidad)."
+          },
+          {
+            "id": "q2",
+            "question": "Quieres iniciar una conversación sin contexto previo. ¿Cuál es el comando correcto?",
+            "options": [
+              "/new",
+              "/clear",
+              "/reset",
+              "/restart"
+            ],
+            "correctAnswer": 1,
+            "explanation": "/clear limpia el contexto de la conversación actual, permitiendo empezar una nueva tarea sin que Claude tenga memoria de interacciones anteriores."
+          },
+          {
+            "id": "q3",
+            "question": "¿Qué comando te permite ejecutar el último comando nuevamente?",
+            "options": [
+              "/retry",
+              "/again",
+              "/redo",
+              "/repeat"
+            ],
+            "correctAnswer": 2,
+            "explanation": "/redo ejecuta nuevamente el último comando o prompt, útil cuando quieres que Claude intente de nuevo con el mismo contexto."
+          },
+          {
+            "id": "q4",
+            "question": "Para ver todos los slash commands disponibles, usas:",
+            "options": [
+              "/list",
+              "/commands",
+              "/help",
+              "/?"
+            ],
+            "correctAnswer": 2,
+            "explanation": "/help muestra todos los comandos disponibles, tanto built-in como custom, con sus descripciones y sintaxis."
+          }
+        ]
+      }
+    },
+    {
+      "id": "m3-ex-2",
+      "moduleId": "3",
+      "lessonId": "3.2",
+      "type": "CODE_CHALLENGE",
+      "title": "Crear Slash Command Personalizado",
+      "instructions": "Crea un slash command custom llamado /api-test que ejecute tests de API con reporte detallado.",
+      "points": 30,
+      "timeLimit": 1200,
+      "config": {
+        "challenge": "Debes crear un slash command `/api-test` que:\n\n**Funcionalidad:**\n1. Ejecuta los tests de API (npm run test:api)\n2. Analiza el output\n3. Si hay fallos, muestra detalles de cada test fallido\n4. Genera un reporte en formato markdown\n5. Sugiere fixes para tests fallidos\n\n**Estructura del comando:**\n- Archivo: `.claude/commands/api-test.md`\n- Debe aceptar parámetros opcionales: suite específica\n- Debe manejar errores si los tests no existen\n\n**Ejemplo de uso:**\n```\n/api-test\n/api-test auth\n/api-test --verbose\n```\n\n**Entrega:**\n1. Contenido completo del archivo `.claude/commands/api-test.md`\n2. Ejemplo de output esperado\n3. Documentación de uso",
+        "validation": {
+          "requiredElements": [
+            ".claude/commands",
+            "npm run test:api",
+            "markdown report",
+            "error handling",
+            "parameter support"
+          ]
+        },
+        "solution": "# Archivo: .claude/commands/api-test.md\n\n```markdown\n---\nname: api-test\ndescription: Ejecuta tests de API y genera reporte detallado con sugerencias de fixes\narguments:\n  - name: suite\n    description: Suite específica de tests a ejecutar (opcional)\n    required: false\n  - name: verbose\n    description: Modo verbose con output completo\n    required: false\n    flag: true\n---\n\n# API Test Runner\n\nEjecuta los tests de API del proyecto y proporciona análisis detallado.\n\n## Pasos:\n\n1. **Verificar que existen tests:**\n   - Busca archivos `*.test.ts` o `*.spec.ts` en `tests/api/` o `src/__tests__/api/`\n   - Si no existen, informa al usuario\n\n2. **Ejecutar tests:**\n   ```bash\n   {{#if arguments.suite}}\n   npm run test:api -- {{arguments.suite}}\n   {{else}}\n   npm run test:api\n   {{/if}}\n   ```\n\n3. **Analizar resultados:**\n   - Parse del output de Jest/Mocha\n   - Identificar tests pasados vs fallidos\n   - Extraer mensajes de error y stack traces\n\n4. **Generar reporte:**\n   ```markdown\n   # 🧪 API Test Report\n\n   **Fecha:** {{current_date}}\n   **Suite:** {{suite_name}}\n\n   ## 📊 Resumen\n   - ✅ Tests pasados: X\n   - ❌ Tests fallidos: Y\n   - ⏭️  Tests skipped: Z\n   - ⏱️  Duración: Xs\n\n   ## ❌ Tests Fallidos\n\n   ### Test: POST /api/users - should create user\n   **Error:** Expected 201, received 500\n   **Stack:**\n   ```\n   [stack trace aquí]\n   ```\n\n   **Análisis:**\n   El endpoint está retornando 500, posiblemente por:\n   - Validación fallando en el schema\n   - Database connection error\n   - Missing required field\n\n   **Sugerencia de fix:**\n   1. Verificar schema de validación en `src/validators/user.ts`\n   2. Agregar logging en el controller\n   3. Verificar que DB esté corriendo\n   ```\n\n5. **Si hay fallos, ofrecer ayuda:**\n   \"¿Quieres que investigue alguno de estos fallos en detalle? Puedo:\n   - Analizar el código del endpoint\n   - Verificar el test\n   - Proponer un fix\"\n\n{{#if arguments.verbose}}\n6. **Output completo:**\n   ```\n   [Todo el output de npm test]\n   ```\n{{/if}}\n```\n\n## Ejemplo de uso:\n\n```bash\n# Ejecutar todos los tests\n/api-test\n\n# Ejecutar suite específica\n/api-test auth\n\n# Modo verbose\n/api-test --verbose\n\n# Suite específica + verbose\n/api-test auth --verbose\n```\n\n## Output esperado:\n\n```\n🧪 Ejecutando tests de API...\n\n✓ npm run test:api completado\n\n# 🧪 API Test Report\n\n**Fecha:** 2025-10-27\n**Suite:** all\n\n## 📊 Resumen\n- ✅ Tests pasados: 45\n- ❌ Tests fallidos: 3\n- ⏭️  Tests skipped: 2\n- ⏱️  Duración: 5.2s\n\n## ❌ Tests Fallidos\n\n### 1. POST /api/users - should reject invalid email\n**Archivo:** tests/api/users.test.ts:45\n**Error:** Expected 400, received 201\n\n**Análisis:** El validator no está rechazando emails inválidos.\n\n**Fix sugerido:**\n```typescript\n// src/validators/user.ts\nemail: z.string().email() // ✅ Agregar .email()\n```\n\n[... más tests fallidos ...]\n\n---\n\n💡 ¿Quieres que investigue algún fallo en detalle?\n```",
+        "rubric": {
+          "command_file": 8,
+          "execution_logic": 8,
+          "report_generation": 6,
+          "error_handling": 4,
+          "documentation": 4
+        }
+      }
+    },
+    {
+      "id": "m3-ex-3",
+      "moduleId": "3",
+      "lessonId": "3.4",
+      "type": "MATCHING_PAIRS",
+      "title": "Plan Mode vs Execution Mode",
+      "instructions": "Empareja cada escenario con el modo correcto (Plan Mode o Execution Mode).",
+      "points": 20,
+      "timeLimit": 360,
+      "config": {
+        "pairs": [
+          {
+            "left": "Necesitas implementar un feature compleja y quieres ver el plan antes de ejecutar",
+            "right": "Plan Mode - Te muestra los pasos sin ejecutar, puedes aprobar o modificar"
+          },
+          {
+            "left": "Fix rápido de un bug obvio en una línea",
+            "right": "Execution Mode - Cambio simple, no necesita planificación"
+          },
+          {
+            "left": "Refactorizar 20 archivos cambiando una API deprecated",
+            "right": "Plan Mode - Cambios masivos requieren revisión antes de ejecutar"
+          },
+          {
+            "left": "Agregar un console.log para debugging",
+            "right": "Execution Mode - Cambio trivial y reversible"
+          },
+          {
+            "left": "Migrar base de datos de MongoDB a PostgreSQL",
+            "right": "Plan Mode - Cambio crítico que requiere planificación detallada y aprobación"
+          },
+          {
+            "left": "Generar documentación JSDoc para funciones existentes",
+            "right": "Execution Mode - Tarea automatizable sin riesgo"
+          }
+        ],
+        "explanation": "Plan Mode es ideal para cambios complejos, riesgosos o que afectan muchos archivos. Execution Mode es mejor para cambios simples, rápidos y de bajo riesgo. Puedes configurar el default en settings."
+      }
+    },
+    {
+      "id": "m3-ex-4",
+      "moduleId": "3",
+      "lessonId": "3.3",
+      "type": "FILL_IN_BLANK",
+      "title": "Configuración Avanzada de Settings",
+      "instructions": "Completa el archivo de configuración de Claude Code con los valores correctos.",
+      "points": 15,
+      "timeLimit": 600,
+      "config": {
+        "template": "```json\n{\n  \"model\": \"{{blank1}}\",\n  \"maxTokens\": {{blank2}},\n  \"temperature\": {{blank3}},\n  \"planMode\": {{blank4}},\n  \"autoCommit\": {{blank5}},\n  \"outputStyle\": \"{{blank6}}\",\n  \"hooks\": {\n    \"onToolCall\": \"{{blank7}}\",\n    \"onFileWrite\": \"{{blank8}}\"\n  },\n  \"subagents\": {\n    \"enabled\": {{blank9}},\n    \"types\": [\"{{blank10}}\"]\n  }\n}\n```",
+        "blanks": [
+          {
+            "id": "blank1",
+            "correctAnswers": ["claude-3-5-sonnet-20241022", "claude-sonnet-3.5"],
+            "hint": "Modelo de Claude más reciente y balanceado"
+          },
+          {
+            "id": "blank2",
+            "correctAnswers": ["4096", "8192"],
+            "hint": "Tokens máximos por respuesta (típicamente 4096-8192)"
+          },
+          {
+            "id": "blank3",
+            "correctAnswers": ["0.7", "0.5", "0.8"],
+            "hint": "Temperature entre 0-1 (0.7 es balanceado)"
+          },
+          {
+            "id": "blank4",
+            "correctAnswers": ["true", "false"],
+            "hint": "true para requerir aprobación, false para ejecutar directamente"
+          },
+          {
+            "id": "blank5",
+            "correctAnswers": ["false", "true"],
+            "hint": "false es más seguro (commits manuales)"
+          },
+          {
+            "id": "blank6",
+            "correctAnswers": ["detailed", "minimal", "markdown"],
+            "hint": "Estilo de output: detailed, minimal, o markdown"
+          },
+          {
+            "id": "blank7",
+            "correctAnswers": ["./hooks/on-tool-call.sh", "bash hooks/log-tools.sh"],
+            "hint": "Script a ejecutar en cada tool call"
+          },
+          {
+            "id": "blank8",
+            "correctAnswers": ["./hooks/on-file-write.sh", "bash hooks/backup.sh"],
+            "hint": "Script a ejecutar antes de escribir archivos"
+          },
+          {
+            "id": "blank9",
+            "correctAnswers": ["true", "false"],
+            "hint": "true para habilitar subagents"
+          },
+          {
+            "id": "blank10",
+            "correctAnswers": ["code-reviewer", "test-runner", "security-scanner"],
+            "hint": "Tipo de subagent (ej: code-reviewer)"
+          }
+        ],
+        "explanation": "La configuración de Claude Code permite personalizar modelo, parámetros, modo de operación, hooks para automatización, y subagents especializados. Se guarda en ~/.clauderc o .claude/config.json a nivel de proyecto."
+      }
+    },
+    {
+      "id": "m4-ex-1",
+      "moduleId": "4",
+      "lessonId": "4.2",
+      "type": "CODE_CHALLENGE",
+      "title": "Crear Subagent Especializado",
+      "instructions": "Crea un subagent llamado 'security-scanner' que analice código en busca de vulnerabilidades comunes.",
+      "points": 35,
+      "timeLimit": 1800,
+      "config": {
+        "challenge": "Debes crear un subagent completo que:\n\n**Funcionalidad:**\n1. Escanee archivos de código (JS/TS) en busca de vulnerabilidades\n2. Detecte patrones peligrosos: eval(), innerHTML, SQL injection, XSS\n3. Verifique dependencias obsoletas con vulnerabilidades conocidas\n4. Genere reporte con severidad (CRITICAL, HIGH, MEDIUM, LOW)\n5. Sugiera fixes específicos para cada vulnerabilidad\n\n**Estructura:**\n- Archivo: `.claude/subagents/security-scanner.json`\n- Capabilities: read files, execute commands (npm audit)\n- System prompt especializado en seguridad\n\n**Criterios de detección:**\n- eval() o Function() constructor: CRITICAL\n- innerHTML sin sanitización: HIGH\n- Queries SQL con string concatenation: CRITICAL\n- Secrets hardcoded: CRITICAL\n- Dependencies con CVEs conocidos: varía según severidad\n\n**Entrega:**\n1. Archivo de configuración del subagent\n2. Ejemplo de invocación\n3. Ejemplo de reporte generado",
+        "validation": {
+          "requiredElements": [
+            "security-scanner",
+            "vulnerability patterns",
+            "severity levels",
+            "npm audit",
+            "remediation suggestions"
+          ]
+        },
+        "solution": "# Archivo: .claude/subagents/security-scanner.json\n\n```json\n{\n  \"name\": \"security-scanner\",\n  \"description\": \"Analiza código en busca de vulnerabilidades de seguridad comunes\",\n  \"systemPrompt\": \"Eres un experto en seguridad de aplicaciones web. Tu rol es identificar vulnerabilidades en código JavaScript/TypeScript siguiendo OWASP Top 10 y mejores prácticas de seguridad.\\n\\nAl analizar código:\\n1. Busca patrones peligrosos (eval, innerHTML, SQL injection)\\n2. Verifica manejo de inputs de usuario\\n3. Revisa autenticación y autorización\\n4. Detecta secrets hardcoded\\n5. Analiza dependencias con vulnerabilidades\\n\\nPara cada vulnerabilidad encontrada, proporciona:\\n- Severidad (CRITICAL/HIGH/MEDIUM/LOW)\\n- Ubicación exacta (archivo:línea)\\n- Descripción del riesgo\\n- Código vulnerable\\n- Fix recomendado con código\\n- Referencias (CWE, OWASP)\\n\\nSé preciso y práctico en tus recomendaciones.\",\n  \"capabilities\": {\n    \"read\": true,\n    \"write\": false,\n    \"execute\": true\n  },\n  \"tools\": [\n    {\n      \"name\": \"scan_code_patterns\",\n      \"description\": \"Escanea archivos en busca de patrones de código peligrosos\",\n      \"parameters\": {\n        \"directory\": \"string\",\n        \"filePattern\": \"string (ej: **/*.{js,ts})\"\n      }\n    },\n    {\n      \"name\": \"check_dependencies\",\n      \"description\": \"Ejecuta npm audit para verificar vulnerabilidades en dependencias\",\n      \"parameters\": {}\n    },\n    {\n      \"name\": \"analyze_authentication\",\n      \"description\": \"Analiza implementación de autenticación y autorización\",\n      \"parameters\": {\n        \"authFiles\": \"array of files\"\n      }\n    }\n  ],\n  \"triggers\": [\n    {\n      \"pattern\": \"scan security\",\n      \"description\": \"Triggered cuando usuario pide escaneo de seguridad\"\n    },\n    {\n      \"pattern\": \"check vulnerabilities\",\n      \"description\": \"Triggered para verificar vulnerabilidades\"\n    },\n    {\n      \"pattern\": \"security review\",\n      \"description\": \"Triggered para code review enfocado en seguridad\"\n    }\n  ],\n  \"outputFormat\": {\n    \"type\": \"markdown\",\n    \"template\": \"# 🔒 Security Scan Report\\n\\n## Summary\\n- Files scanned: {{filesScanned}}\\n- Vulnerabilities found: {{vulnCount}}\\n  - CRITICAL: {{criticalCount}}\\n  - HIGH: {{highCount}}\\n  - MEDIUM: {{mediumCount}}\\n  - LOW: {{lowCount}}\\n\\n## Findings\\n\\n{{#each vulnerabilities}}\\n### [{{severity}}] {{title}}\\n**File:** {{file}}:{{line}}\\n**CWE:** {{cwe}}\\n\\n**Vulnerable Code:**\\n```{{lang}}\\n{{code}}\\n```\\n\\n**Risk:** {{description}}\\n\\n**Remediation:**\\n```{{lang}}\\n{{fix}}\\n```\\n\\n---\\n{{/each}}\\n\\n## Dependencies\\n\\n{{npmAuditSummary}}\\n\\n## Recommendations\\n\\n{{recommendations}}\"\n  }\n}\n```\n\n# Implementación de Patrones de Detección\n\n```typescript\n// .claude/subagents/security-scanner-patterns.ts\n\ninterface VulnerabilityPattern {\n  name: string;\n  pattern: RegExp;\n  severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';\n  cwe: string;\n  description: string;\n  remediation: string;\n}\n\nconst VULNERABILITY_PATTERNS: VulnerabilityPattern[] = [\n  {\n    name: 'Use of eval()',\n    pattern: /\\beval\\s*\\(/g,\n    severity: 'CRITICAL',\n    cwe: 'CWE-95',\n    description: 'eval() ejecuta código arbitrario y puede llevar a Code Injection',\n    remediation: 'Evita eval(). Usa JSON.parse() para datos, o Function constructor con validación estricta si es absolutamente necesario.'\n  },\n  {\n    name: 'innerHTML without sanitization',\n    pattern: /\\.innerHTML\\s*=\\s*(?!['\"<])/g,\n    severity: 'HIGH',\n    cwe: 'CWE-79',\n    description: 'Asignar a innerHTML sin sanitización puede causar XSS',\n    remediation: 'Usa textContent para texto plano, o DOMPurify para HTML: element.innerHTML = DOMPurify.sanitize(userInput)'\n  },\n  {\n    name: 'SQL Injection - String Concatenation',\n    pattern: /(?:query|execute)\\s*\\([^)]*\\+[^)]*\\)/g,\n    severity: 'CRITICAL',\n    cwe: 'CWE-89',\n    description: 'Concatenar strings en queries SQL permite SQL Injection',\n    remediation: 'Usa prepared statements o query builders: db.query(\"SELECT * FROM users WHERE id = ?\", [userId])'\n  },\n  {\n    name: 'Hardcoded Secrets',\n    pattern: /(password|secret|api[_-]?key|token)\\s*[=:]\\s*['\"][^'\"]{8,}['\"]/gi,\n    severity: 'CRITICAL',\n    cwe: 'CWE-798',\n    description: 'Secretos hardcoded pueden ser expuestos en el código fuente',\n    remediation: 'Usa variables de entorno: const apiKey = process.env.API_KEY'\n  },\n  {\n    name: 'Weak Crypto - MD5/SHA1',\n    pattern: /crypto\\.createHash\\(['\"](?:md5|sha1)['\"]\\)/g,\n    severity: 'HIGH',\n    cwe: 'CWE-327',\n    description: 'MD5 y SHA1 son algoritmos criptográficos rotos',\n    remediation: 'Usa SHA-256 o bcrypt para passwords: crypto.createHash(\"sha256\")'\n  },\n  {\n    name: 'Insecure Random',\n    pattern: /Math\\.random\\(\\)/g,\n    severity: 'MEDIUM',\n    cwe: 'CWE-330',\n    description: 'Math.random() no es criptográficamente seguro',\n    remediation: 'Para tokens/IDs, usa crypto.randomBytes(): crypto.randomBytes(32).toString(\"hex\")'\n  }\n];\n\nexport async function scanFile(filePath: string, content: string) {\n  const vulnerabilities = [];\n\n  for (const pattern of VULNERABILITY_PATTERNS) {\n    const matches = content.matchAll(pattern.pattern);\n\n    for (const match of matches) {\n      const lineNumber = content.substring(0, match.index).split('\\n').length;\n      const line = content.split('\\n')[lineNumber - 1];\n\n      vulnerabilities.push({\n        name: pattern.name,\n        severity: pattern.severity,\n        cwe: pattern.cwe,\n        file: filePath,\n        line: lineNumber,\n        code: line.trim(),\n        description: pattern.description,\n        remediation: pattern.remediation\n      });\n    }\n  }\n\n  return vulnerabilities;\n}\n```\n\n# Ejemplo de Invocación:\n\n```bash\n# En Claude Code\nclaude\n\n> Activa el subagent security-scanner y escanea src/ en busca de vulnerabilidades\n\n# O usando trigger pattern\n> security review de src/auth/\n\n# O scan completo\n> scan security en todo el proyecto\n```\n\n# Ejemplo de Reporte Generado:\n\n```markdown\n# 🔒 Security Scan Report\n\n**Date:** 2025-10-27\n**Scope:** src/\n**Duration:** 3.2s\n\n## Summary\n- Files scanned: 47\n- Vulnerabilities found: 8\n  - 🔴 CRITICAL: 3\n  - 🟠 HIGH: 2\n  - 🟡 MEDIUM: 2\n  - 🟢 LOW: 1\n\n---\n\n## Findings\n\n### [🔴 CRITICAL] SQL Injection via String Concatenation\n**File:** src/controllers/userController.ts:45\n**CWE:** CWE-89 (SQL Injection)\n\n**Vulnerable Code:**\n```typescript\nconst query = \"SELECT * FROM users WHERE email = '\" + email + \"'\";\nconst result = await db.query(query);\n```\n\n**Risk:** Un atacante puede inyectar SQL modificando el parámetro email:\n```\nemail = \"' OR '1'='1\"\n→ SELECT * FROM users WHERE email = '' OR '1'='1'\n```\nEsto retorna todos los usuarios, bypasseando autenticación.\n\n**Remediation:**\n```typescript\n// ✅ Usa prepared statements\nconst query = \"SELECT * FROM users WHERE email = ?\";\nconst result = await db.query(query, [email]);\n\n// O query builder\nconst result = await db('users').where({ email }).first();\n```\n\n**Priority:** Fix inmediatamente antes de deploy a producción.\n\n---\n\n### [🔴 CRITICAL] Hardcoded API Key\n**File:** src/config/stripe.ts:3\n**CWE:** CWE-798 (Use of Hard-coded Credentials)\n\n**Vulnerable Code:**\n```typescript\nconst stripe = new Stripe(\"sk_live_51H...\");\n```\n\n**Risk:** La API key está expuesta en el repositorio. Cualquiera con acceso al código puede usarla.\n\n**Remediation:**\n```typescript\n// ✅ Usa variable de entorno\nconst stripe = new Stripe(process.env.STRIPE_API_KEY!);\n\n// .env (NO committear)\nSTRIPE_API_KEY=sk_live_51H...\n\n// .env.example (SÍ committear)\nSTRIPE_API_KEY=your_stripe_key_here\n```\n\n**Priority:** Rotar la API key inmediatamente y configurar variable de entorno.\n\n---\n\n### [🟠 HIGH] XSS via innerHTML\n**File:** src/components/CommentDisplay.tsx:23\n**CWE:** CWE-79 (Cross-Site Scripting)\n\n**Vulnerable Code:**\n```typescript\ncommentDiv.innerHTML = comment.text;\n```\n\n**Risk:** Si comment.text contiene HTML malicioso:\n```javascript\ncomment.text = \"<img src=x onerror='alert(document.cookie)'>\"\n```\nSe ejecutará JavaScript en el contexto del usuario.\n\n**Remediation:**\n```typescript\n// ✅ Opción 1: textContent (solo texto)\ncommentDiv.textContent = comment.text;\n\n// ✅ Opción 2: DOMPurify (si necesitas HTML)\nimport DOMPurify from 'dompurify';\ncommentDiv.innerHTML = DOMPurify.sanitize(comment.text);\n```\n\n---\n\n## Dependencies Audit\n\n```\n🔴 2 critical vulnerabilities\n🟠 3 high vulnerabilities\n🟡 1 moderate vulnerability\n\nCRITICAL:\n- lodash@4.17.15 (Prototype Pollution CVE-2020-8203)\n  Fix: npm update lodash@^4.17.21\n\n- axios@0.19.0 (SSRF CVE-2021-3749)\n  Fix: npm update axios@^0.21.2\n```\n\n## Recommendations\n\n### Immediate Actions (⏰ < 24h)\n1. Fix SQL injection en userController\n2. Rotar y externalizar Stripe API key\n3. Actualizar lodash y axios\n\n### Short-term (📅 < 1 week)\n1. Implementar CSP headers\n2. Agregar input validation con zod/joi\n3. Configurar pre-commit hooks con ESLint security plugins\n4. Sanitizar todos los innerHTML con DOMPurify\n\n### Long-term (🗓️ < 1 month)\n1. Implementar Security Headers (Helmet.js)\n2. Configurar SAST en CI/CD (Snyk, SonarQube)\n3. Penetration testing profesional\n4. Security training para el equipo\n\n---\n\n**Next Steps:**\n¿Quieres que trabaje en algún fix específico? Puedo:\n- Refactorizar el código vulnerable\n- Configurar las security headers\n- Actualizar las dependencias con breaking changes\n```",
+        "rubric": {
+          "subagent_config": 10,
+          "vulnerability_patterns": 10,
+          "detection_logic": 7,
+          "report_format": 5,
+          "remediation_quality": 3
+        }
+      }
+    },
+    {
+      "id": "m4-ex-2",
+      "moduleId": "4",
+      "lessonId": "4.4",
+      "type": "MULTIPLE_CHOICE",
+      "title": "Hooks y Automatización",
+      "instructions": "Responde sobre hooks y automatización de workflows en Claude Code.",
+      "points": 20,
+      "timeLimit": 600,
+      "config": {
+        "questions": [
+          {
+            "id": "q1",
+            "question": "¿Cuál es el propósito principal de los hooks en Claude Code?",
+            "options": [
+              "Reemplazar subagents",
+              "Ejecutar scripts automáticamente en eventos específicos del workflow",
+              "Configurar modelos de IA",
+              "Generar documentación"
+            ],
+            "correctAnswer": 1,
+            "explanation": "Los hooks permiten ejecutar scripts personalizados automáticamente cuando ocurren eventos específicos (antes/después de tool calls, file writes, commits, etc.), permitiendo automatizar workflows y agregar comportamiento custom."
+          },
+          {
+            "id": "q2",
+            "question": "¿En qué archivo se configuran los hooks de Claude Code?",
+            "options": [
+              "hooks.json",
+              ".clauderc o .claude/config.json",
+              "package.json",
+              ".git/hooks"
+            ],
+            "correctAnswer": 1,
+            "explanation": "Los hooks se configuran en el archivo de configuración de Claude Code (.clauderc a nivel global o .claude/config.json a nivel de proyecto) bajo la sección 'hooks'."
+          },
+          {
+            "id": "q3",
+            "question": "Si quieres hacer backup automático antes de que Claude Code modifique archivos, ¿qué hook usarías?",
+            "options": [
+              "onToolCall",
+              "onFileWrite",
+              "preWrite",
+              "beforeModify"
+            ],
+            "correctAnswer": 1,
+            "explanation": "El hook 'onFileWrite' se ejecuta antes de que Claude Code escriba o modifique archivos, siendo perfecto para crear backups automáticos."
+          },
+          {
+            "id": "q4",
+            "question": "¿Qué información recibe un hook como parámetros?",
+            "options": [
+              "Solo el nombre del archivo",
+              "Contexto completo: evento, archivos afectados, comandos ejecutados, etc.",
+              "Nada, los hooks no reciben parámetros",
+              "Solo el timestamp"
+            ],
+            "correctAnswer": 1,
+            "explanation": "Los hooks reciben un objeto de contexto rico con información sobre el evento: tipo de evento, archivos afectados, tool calls realizados, output, timestamp, etc., permitiendo crear automatizaciones inteligentes."
+          },
+          {
+            "id": "q5",
+            "question": "¿Cuál es un caso de uso común de hooks en equipos enterprise?",
+            "options": [
+              "Reemplazar Git",
+              "Logging y auditoría de todas las operaciones de Claude Code",
+              "Entrenar modelos de IA",
+              "Compilar TypeScript"
+            ],
+            "correctAnswer": 1,
+            "explanation": "En entornos enterprise, los hooks se usan frecuentemente para logging y auditoría, registrando todas las operaciones de Claude Code (qué archivos modificó, qué comandos ejecutó, quién lo usó) en sistemas de auditoría centralizados."
+          }
+        ]
+      }
+    },
+    {
+      "id": "m4-ex-3",
+      "moduleId": "4",
+      "lessonId": "4.5",
+      "type": "CODE_CHALLENGE",
+      "title": "Output Style Personalizado",
+      "instructions": "Crea un output style custom para Claude Code que genere reportes en formato ejecutivo para stakeholders no técnicos.",
+      "points": 25,
+      "timeLimit": 900,
+      "config": {
+        "challenge": "Crea un output style llamado 'executive-report' que:\n\n**Características:**\n1. Formato conciso, sin jerga técnica\n2. Usa emojis para visual clarity\n3. Enfoque en impacto de negocio vs detalles técnicos\n4. Secciones:\n   - 🎯 Objetivo completado\n   - ✅ Logros (qué se hizo, en lenguaje simple)\n   - 💡 Valor de negocio (qué significa para el producto/empresa)\n   - ⏱️ Tiempo ahorrado (comparado con implementación manual)\n   - 🚀 Próximos pasos recomendados\n\n**Archivo:** `.claude/output-styles/executive-report.json`\n\n**Ejemplo de transformación:**\nTécnico: \"Refactored UserService class to use dependency injection pattern, replaced 15 instances of new User() with factory...\"\nEjecutivo: \"✅ Mejorada la arquitectura de usuarios para facilitar testing y escalabilidad futura\"\n\n**Entrega:**\n1. Archivo de configuración completo\n2. Ejemplo de output en ambos estilos (técnico vs ejecutivo)\n3. Uso sugerido",
+        "validation": {
+          "requiredElements": [
+            "executive-report",
+            "business value",
+            "non-technical language",
+            "impact metrics",
+            "emoji formatting"
+          ]
+        },
+        "solution": "# Archivo: .claude/output-styles/executive-report.json\n\n```json\n{\n  \"name\": \"executive-report\",\n  \"description\": \"Reportes concisos en lenguaje de negocio para stakeholders no técnicos\",\n  \"format\": {\n    \"verbose\": false,\n    \"includeCode\": false,\n    \"includeCommands\": false,\n    \"usePlainLanguage\": true,\n    \"useEmojis\": true\n  },\n  \"sections\": {\n    \"objective\": {\n      \"label\": \"🎯 Objetivo\",\n      \"transform\": \"summarize-business-goal\"\n    },\n    \"achievements\": {\n      \"label\": \"✅ Logros\",\n      \"transform\": \"bullet-list-simple\",\n      \"maxItems\": 5\n    },\n    \"businessValue\": {\n      \"label\": \"💡 Valor de Negocio\",\n      \"transform\": \"explain-impact\"\n    },\n    \"timeSaved\": {\n      \"label\": \"⏱️ Eficiencia\",\n      \"transform\": \"compare-manual-time\"\n    },\n    \"nextSteps\": {\n      \"label\": \"🚀 Próximos Pasos\",\n      \"transform\": \"recommend-actions\"\n    }\n  },\n  \"transformations\": {\n    \"jargonToPlain\": {\n      \"refactor\": \"mejorar\",\n      \"dependency injection\": \"arquitectura modular\",\n      \"API endpoint\": \"punto de conexión\",\n      \"database migration\": \"actualización de datos\",\n      \"unit tests\": \"verificaciones automáticas\",\n      \"CI/CD pipeline\": \"sistema de publicación automática\",\n      \"authentication\": \"inicio de sesión\",\n      \"middleware\": \"capa intermedia\",\n      \"ORM\": \"sistema de base de datos\"\n    },\n    \"impactMetrics\": {\n      \"bug_fix\": \"Problema resuelto que afectaba a {percentage}% de usuarios\",\n      \"performance\": \"Velocidad mejorada en {metric}%\",\n      \"feature\": \"Nueva funcionalidad disponible: {description}\",\n      \"security\": \"Vulnerabilidad de seguridad solucionada\"\n    }\n  },\n  \"examples\": [\n    {\n      \"technical\": \"Implemented OAuth 2.0 authentication flow with Google provider, including refresh token handling and profile synchronization\",\n      \"executive\": \"✅ Los usuarios ahora pueden iniciar sesión con su cuenta de Google en un click\"\n    },\n    {\n      \"technical\": \"Optimized database queries with proper indexing and query batching, reduced average response time from 2.3s to 0.4s\",\n      \"executive\": \"⏱️ La aplicación ahora responde 5x más rápido (de 2.3s a 0.4s)\"\n    },\n    {\n      \"technical\": \"Refactored monolithic UserService into separate UserRepository, AuthService, and ProfileService following SOLID principles\",\n      \"executive\": \"✅ Mejorada la arquitectura interna para facilitar futuras actualizaciones y corrección de errores\"\n    }\n  ]\n}\n```\n\n# Ejemplo Completo de Uso:\n\n## Tarea Original:\n\"Implementa un sistema de notificaciones push para alertar a usuarios cuando reciben nuevos mensajes\"\n\n## Output Técnico (default):\n```\n✓ Installed dependencies:\n  - firebase-admin@11.0.0\n  - @google-cloud/firestore@6.0.0\n\n✓ Created NotificationService class:\n  - Singleton pattern with Firebase Admin SDK\n  - sendNotification(userId, message) method\n  - sendBulkNotifications(userIds, message) batch method\n  - Error handling with exponential backoff retry\n\n✓ Implemented database models:\n  - NotificationToken schema (userId, token, platform, createdAt)\n  - NotificationLog schema (userId, messageId, sentAt, status)\n\n✓ Created API endpoints:\n  - POST /api/notifications/register-token (store FCM token)\n  - POST /api/notifications/send (admin only)\n  - GET /api/notifications/history (user notifications)\n\n✓ Updated MessageService:\n  - Added hook to trigger notification on new message\n  - Integration with NotificationService\n\n✓ Tests:\n  - Unit tests for NotificationService (95% coverage)\n  - Integration tests for API endpoints\n  - E2E test for full flow (message → notification)\n\nFiles modified: 8\nLines of code: +450\nTime: 25 minutes\n```\n\n## Output Ejecutivo (executive-report):\n```\n# 🎯 Objetivo: Notificaciones en Tiempo Real\n\nImplementar sistema para que usuarios reciban alertas instantáneas de nuevos mensajes.\n\n---\n\n## ✅ Logros\n\n• Los usuarios ahora reciben alertas instantáneas en su teléfono cuando reciben mensajes\n• Sistema robusto que maneja miles de notificaciones simultáneamente\n• Panel de administración para enviar anuncios a todos los usuarios\n• Historial de notificaciones disponible en la app\n• Sistema de respaldo si la notificación falla por conectividad\n\n---\n\n## 💡 Valor de Negocio\n\n**Engagement de usuarios:**\n• Los usuarios responden 3x más rápido a mensajes (datos de apps similares)\n• Aumenta tiempo de uso de la app en promedio 40%\n• Reduce abandono de conversaciones en 60%\n\n**Retención:**\n• Las notificaciones push aumentan retención de usuarios en 30-day por 88% (benchmark industria)\n• Usuarios reciben recordatorio de la app incluso cuando no la están usando\n\n**Monetización:**\n• Permite anuncios de nuevas features directamente a usuarios\n• Base para futuras notificaciones promocionales (con opt-in)\n\n**Competitividad:**\n• Funcionalidad estándar esperada por usuarios\n• Estamos a la par con competidores principales\n\n---\n\n## ⏱️ Eficiencia\n\n**Tiempo de desarrollo:**\n• Implementación completa: 25 minutos con Claude Code\n• Implementación manual estimada: 8-12 horas\n• **Ahorro: 95% de tiempo de desarrollo**\n\n**Calidad:**\n• Incluye manejo de errores desde el inicio\n• Tests automáticos para prevenir bugs\n• Siguiendo mejores prácticas de Google Firebase\n\n---\n\n## 🚀 Próximos Pasos Recomendados\n\n**Corto plazo (esta semana):**\n1. Beta test con 10-20 usuarios para validar funcionalidad\n2. Ajustar frecuencia de notificaciones basado en feedback (evitar spam)\n3. Configurar analytics para medir impacto en engagement\n\n**Mediano plazo (próximo mes):**\n1. Agregar preferencias de notificación (qué tipos quiere recibir cada usuario)\n2. Implementar notificaciones rich (con imágenes, botones de acción)\n3. A/B testing de mensajes para optimizar click-through rate\n\n**Largo plazo (próximo quarter):**\n1. Sistema de segmentación para notificaciones personalizadas\n2. Integración con campañas de marketing\n3. Notificaciones en web (PWA) además de móvil\n\n---\n\n📊 **KPIs a monitorear:**\n- Tasa de apertura de notificaciones (target: >15%)\n- Tiempo promedio de respuesta a mensajes (target: <5 min)\n- Retención D7 y D30 (esperamos +10% mejora)\n- Quejas por spam (mantener <2%)\n```\n\n## Cómo Activarlo:\n\n```bash\n# En .claude/config.json\n{\n  \"outputStyle\": \"executive-report\"\n}\n\n# O temporalmente\nclaude --output-style executive-report\n\n# O en conversación\n/style executive-report\n```\n\n## Cuándo Usarlo:\n\n✅ **Ideal para:**\n- Demos a stakeholders (PM, founders, inversores)\n- Status reports semanales\n- Presentaciones de progreso\n- Documentación de impacto de negocio\n\n❌ **No usar para:**\n- Code reviews (necesitas detalles técnicos)\n- Debugging (necesitas stack traces, logs)\n- Pair programming con devs\n- Documentación técnica",
+        "rubric": {
+          "config_file": 7,
+          "transformations": 6,
+          "business_language": 6,
+          "examples": 3,
+          "documentation": 3
+        }
+      }
+    },
+    {
+      "id": "m4-ex-4",
+      "moduleId": "4",
+      "lessonId": "4.6",
+      "type": "MATCHING_PAIRS",
+      "title": "Checkpointing y State Management",
+      "instructions": "Empareja cada escenario con la estrategia correcta de checkpointing.",
+      "points": 15,
+      "timeLimit": 360,
+      "config": {
+        "pairs": [
+          {
+            "left": "Implementación de feature grande (2+ horas) con múltiples pasos",
+            "right": "Checkpoint cada paso completado - permite rollback granular"
+          },
+          {
+            "left": "Refactor masivo que puede romper el código temporalmente",
+            "right": "Checkpoint antes de iniciar + checkpoints intermedios en puntos seguros"
+          },
+          {
+            "left": "Experimentación con diferentes soluciones (A/B testing de approaches)",
+            "right": "Branch checkpoints - crear checkpoint antes de cada approach para comparar"
+          },
+          {
+            "left": "Debugging de issue complejo con múltiples hipótesis",
+            "right": "Checkpoint después de cada cambio de debugging para aislar qué funcionó"
+          },
+          {
+            "left": "Migración de base de datos o cambios en schema",
+            "right": "Checkpoint completo del estado antes + validación en cada paso"
+          },
+          {
+            "left": "Code review iterativo con cambios solicitados",
+            "right": "Checkpoint de cada iteración de review para tracking de cambios"
+          }
+        ],
+        "explanation": "Checkpointing en Claude Code permite guardar el estado del proyecto en puntos clave, facilitando rollback, comparación de approaches y recovery de errores. Es especialmente útil en tareas largas o riesgosas donde quieres poder volver atrás sin perder progreso."
+      }
+    }
+  ]
+}

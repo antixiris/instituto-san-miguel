@@ -725,6 +725,42 @@ html.dark .medium-content em {
 }
 
 /* ========================================
+   SUBTITLE - Bold Italic (***text***)
+   Used for lesson subtitles
+   ======================================== */
+
+.medium-content p:first-of-type strong em,
+.medium-content p:first-of-type em strong {
+  display: block;
+  font-family: Georgia, Cambria, "Times New Roman", Times, serif;
+  font-size: 18px;
+  font-weight: 600;
+  font-style: italic;
+  color: #666666;
+  margin-bottom: 2.5em;
+  margin-top: -0.5em;
+  line-height: 1.4;
+}
+
+/* Force light mode for subtitle */
+html:not(.dark) .medium-content p:first-of-type strong em,
+html:not(.dark) .medium-content p:first-of-type em strong {
+  color: #666666 !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  .medium-content p:first-of-type strong em,
+  .medium-content p:first-of-type em strong {
+    color: #999999;
+  }
+}
+
+html.dark .medium-content p:first-of-type strong em,
+html.dark .medium-content p:first-of-type em strong {
+  color: #999999;
+}
+
+/* ========================================
    CODE INLINE - Minimal Badge Style
    ======================================== */
 

@@ -1,0 +1,289 @@
+{
+  "module": "Módulo 5: Model Context Protocol (MCP)",
+  "title": "Evaluación Final - Model Context Protocol",
+  "description": "Test de evaluación del Módulo 5. Debes obtener al menos 7.0/10 para aprobar y desbloquear el PDF del módulo.",
+  "passingScore": 7.0,
+  "timeLimit": 5400,
+  "questions": [
+    {
+      "id": "mcp-test-q1",
+      "type": "MULTIPLE_CHOICE",
+      "question": "¿Cuál es la mejor descripción de lo que MCP representa para las aplicaciones de IA?",
+      "options": [
+        "Un lenguaje de programación específico para IA",
+        "Un protocolo estándar para conectar aplicaciones IA con sistemas externos",
+        "Una base de datos optimizada para modelos de lenguaje",
+        "Un framework de desarrollo web con IA integrada"
+      ],
+      "correctAnswer": 1,
+      "explanation": "MCP (Model Context Protocol) es un protocolo estándar de código abierto diseñado para conectar aplicaciones de IA con sistemas externos de manera unificada, similar a cómo USB-C estandarizó la conectividad física.",
+      "points": 0.5
+    },
+    {
+      "id": "mcp-test-q2",
+      "type": "MULTIPLE_CHOICE",
+      "question": "En la analogía 'MCP es como un puerto USB-C para aplicaciones de IA', ¿qué representa el 'USB-C'?",
+      "options": [
+        "La velocidad de comunicación",
+        "La estandarización y conectividad universal",
+        "El tamaño compacto del protocolo",
+        "La capacidad de transferir energía"
+      ],
+      "correctAnswer": 1,
+      "explanation": "La analogía con USB-C enfatiza que MCP proporciona un estándar universal de conectividad, eliminando la necesidad de crear integraciones custom para cada servicio, tal como USB-C eliminó la necesidad de múltiples tipos de cables.",
+      "points": 0.5
+    },
+    {
+      "id": "mcp-test-q3",
+      "type": "MULTIPLE_CHOICE",
+      "question": "¿Cuáles son los tres actores principales en la arquitectura de MCP?",
+      "options": [
+        "Client, Server, Database",
+        "Host, Client, Server",
+        "Application, Protocol, Transport",
+        "User, Agent, Service"
+      ],
+      "correctAnswer": 1,
+      "explanation": "La arquitectura de MCP se compone de: MCP Host (la aplicación IA como Claude Code), MCP Client (conexión uno-a-uno con un servidor), y MCP Server (programa que expone herramientas y recursos).",
+      "points": 0.5
+    },
+    {
+      "id": "mcp-test-q4",
+      "type": "MULTIPLE_CHOICE",
+      "question": "Un MCP Host puede tener múltiples clientes, pero ¿qué tipo de relación mantiene cada cliente con los servidores?",
+      "options": [
+        "Relación muchos-a-muchos: un cliente puede conectarse a múltiples servidores",
+        "Relación uno-a-muchos: un cliente gestiona varios servidores",
+        "Relación uno-a-uno: cada cliente se conecta exclusivamente a UN servidor",
+        "Relación dinámica: varía según la configuración"
+      ],
+      "correctAnswer": 2,
+      "explanation": "Cada MCP Client mantiene una conexión dedicada uno-a-uno con su servidor correspondiente. Si el Host necesita acceder a múltiples servidores, debe crear múltiples clientes (uno por cada servidor).",
+      "points": 0.5
+    },
+    {
+      "id": "mcp-test-q5",
+      "type": "MULTIPLE_CHOICE",
+      "question": "¿Qué protocolo subyacente utiliza MCP para la comunicación entre cliente y servidor?",
+      "options": [
+        "GraphQL",
+        "REST",
+        "JSON-RPC 2.0",
+        "gRPC"
+      ],
+      "correctAnswer": 2,
+      "explanation": "MCP implementa JSON-RPC 2.0 en la Data Layer para toda la comunicación entre clientes y servidores, proporcionando un formato estándar para request/response.",
+      "points": 0.5
+    },
+    {
+      "id": "mcp-test-q6",
+      "type": "MULTIPLE_CHOICE",
+      "question": "¿Cuáles son las dos capas principales de la arquitectura MCP?",
+      "options": [
+        "Application Layer y Presentation Layer",
+        "Data Layer y Transport Layer",
+        "Security Layer y Communication Layer",
+        "Protocol Layer y Service Layer"
+      ],
+      "correctAnswer": 1,
+      "explanation": "MCP tiene una arquitectura en capas clara: Data Layer (implementa JSON-RPC 2.0, gestiona lifecycle, tools, resources, prompts) y Transport Layer (gestiona canales de comunicación como Stdio, HTTP, SSE).",
+      "points": 0.5
+    },
+    {
+      "id": "mcp-test-q7",
+      "type": "MULTIPLE_CHOICE",
+      "question": "¿Cuántos primitivos tiene MCP en total, y cómo se distribuyen entre servidor y cliente?",
+      "options": [
+        "4 primitivos: 2 en servidor, 2 en cliente",
+        "6 primitivos: 3 en servidor (Tools, Resources, Prompts), 3 en cliente (Sampling, Elicitation, Logging)",
+        "8 primitivos: 4 en servidor, 4 en cliente",
+        "5 primitivos: todos en el servidor"
+      ],
+      "correctAnswer": 1,
+      "explanation": "MCP tiene 6 primitivos en total: 3 expuestos por servidores (Tools, Resources, Prompts) y 3 expuestos por clientes (Sampling, Elicitation, Logging).",
+      "points": 0.5
+    },
+    {
+      "id": "mcp-test-q8",
+      "type": "MULTIPLE_CHOICE",
+      "question": "¿Cuál es la diferencia fundamental entre un 'Tool' y un 'Resource' en MCP?",
+      "options": [
+        "Los tools son más rápidos que los resources",
+        "Los tools son funciones ejecutables, los resources son fuentes de datos pasivos",
+        "Los resources requieren autenticación, los tools no",
+        "No hay diferencia, son términos intercambiables"
+      ],
+      "correctAnswer": 1,
+      "explanation": "Tools son funciones ejecutables que la aplicación IA puede invocar para realizar acciones (ej: crear archivo, ejecutar query). Resources son fuentes de datos que proporcionan información contextual de forma pasiva (ej: contenido de archivos, esquemas de BD).",
+      "points": 0.5
+    },
+    {
+      "id": "mcp-test-q9",
+      "type": "MULTIPLE_CHOICE",
+      "question": "Para agregar un servidor MCP con transporte HTTP a nivel de proyecto, ¿cuál es el comando correcto?",
+      "options": [
+        "claude mcp add http github https://api.github.com/mcp/",
+        "claude mcp add --scope project --transport http github https://api.github.com/mcp/",
+        "claude mcp install --http github https://api.github.com/mcp/",
+        "claude server add --project github https://api.github.com/mcp/"
+      ],
+      "correctAnswer": 1,
+      "explanation": "El comando correcto es 'claude mcp add --scope project --transport http <nombre> <url>'. El flag --scope project indica que el servidor estará disponible solo para el proyecto actual.",
+      "points": 0.5
+    },
+    {
+      "id": "mcp-test-q10",
+      "type": "MULTIPLE_CHOICE",
+      "question": "¿Cuál es el orden de precedencia correcto de los scopes de configuración en MCP?",
+      "options": [
+        "User < Project < Local",
+        "Local < User < Project",
+        "Project < Local < User",
+        "Local < Project < User"
+      ],
+      "correctAnswer": 3,
+      "explanation": "El orden de precedencia es: Local (menor precedencia) < Project < User (mayor precedencia). User scope tiene la mayor prioridad y puede sobrescribir configuraciones de Project y Local.",
+      "points": 0.5
+    },
+    {
+      "id": "mcp-test-q11",
+      "type": "MULTIPLE_CHOICE",
+      "question": "Para un servidor MCP con transporte Stdio que requiere pasar argumentos al comando, ¿qué separador se utiliza?",
+      "options": [
+        "Punto y coma (;)",
+        "Doble guión (--)",
+        "Pipe (|)",
+        "Ampersand (&)"
+      ],
+      "correctAnswer": 1,
+      "explanation": "El separador '--' se utiliza para separar los flags de 'claude mcp add' de los argumentos que se pasarán al comando del servidor. Ejemplo: 'claude mcp add filesystem -- npx -y @modelcontextprotocol/server-filesystem ~/Documents'",
+      "points": 0.5
+    },
+    {
+      "id": "mcp-test-q12",
+      "type": "MULTIPLE_CHOICE",
+      "question": "En el archivo .mcp.json, ¿cómo se expanden las variables de entorno de forma segura con valores por defecto?",
+      "options": [
+        "${VAR_NAME}",
+        "$VAR_NAME",
+        "${VAR_NAME:-default_value}",
+        "{{VAR_NAME|default_value}}"
+      ],
+      "correctAnswer": 2,
+      "explanation": "La sintaxis '${VAR_NAME:-default_value}' permite usar variables de entorno con valores por defecto. Si la variable no está definida, se usa el valor después de ':-'.",
+      "points": 0.5
+    },
+    {
+      "id": "mcp-test-q13",
+      "type": "MULTIPLE_CHOICE",
+      "question": "Si necesitas trackear errores de producción con stack traces y crear issues automáticamente, ¿qué servidor MCP utilizarías?",
+      "options": [
+        "GitHub",
+        "Sentry",
+        "Linear",
+        "Jam"
+      ],
+      "correctAnswer": 1,
+      "explanation": "Sentry es el servidor MCP especializado en error tracking y debugging, con acceso a errores en tiempo real, stack traces, estadísticas de estabilidad y capacidad de crear issues directamente desde errores.",
+      "points": 0.5
+    },
+    {
+      "id": "mcp-test-q14",
+      "type": "MULTIPLE_CHOICE",
+      "question": "¿Cuál es el servidor MCP correcto para trabajar con bases de datos PostgreSQL?",
+      "options": [
+        "@modelcontextprotocol/server-postgresql",
+        "@bytebase/dbhub",
+        "@postgres/mcp-server",
+        "@database/postgres-mcp"
+      ],
+      "correctAnswer": 1,
+      "explanation": "El servidor oficial para PostgreSQL es '@bytebase/dbhub', que proporciona queries SQL, inspección de schemas, explain query plans y estadísticas de tablas.",
+      "points": 0.5
+    },
+    {
+      "id": "mcp-test-q15",
+      "type": "MULTIPLE_CHOICE",
+      "question": "Al crear un servidor MCP en Python con FastMCP, ¿qué decorador se utiliza para definir una herramienta (tool)?",
+      "options": [
+        "@tool()",
+        "@mcp.tool()",
+        "@server.tool()",
+        "@fastmcp.tool()"
+      ],
+      "correctAnswer": 1,
+      "explanation": "En FastMCP, se usa el decorador '@mcp.tool()' para definir herramientas. Ejemplo: '@mcp.tool() async def create_note(title: str) -> str:'",
+      "points": 0.5
+    },
+    {
+      "id": "mcp-test-q16",
+      "type": "MULTIPLE_CHOICE",
+      "question": "En FastMCP, ¿cómo se define un resource con URI dinámico?",
+      "options": [
+        "@mcp.resource('/notes/{id}')",
+        "@mcp.resource('notes://{id}')",
+        "@mcp.resource('notes?id={id}')",
+        "@mcp.resource('notes/{id}')"
+      ],
+      "correctAnswer": 1,
+      "explanation": "Los resources en MCP usan URIs con formato de esquema. Para URIs dinámicos se usa la sintaxis 'scheme://{parameter}'. Ejemplo: '@mcp.resource(\"notes://{id}\")'",
+      "points": 0.5
+    },
+    {
+      "id": "mcp-test-q17",
+      "type": "MULTIPLE_CHOICE",
+      "question": "Al crear un cliente MCP personalizado, ¿cuál es el flujo correcto para procesar una consulta del usuario?",
+      "options": [
+        "Usuario → Cliente → MCP Server → Usuario",
+        "Usuario → Cliente → Claude → Cliente → Usuario (sin loop)",
+        "Usuario → Cliente → Claude → [Loop: Tool execution via MCP → Claude] → Cliente → Usuario",
+        "Usuario → Claude → Cliente → MCP Server → Usuario"
+      ],
+      "correctAnswer": 2,
+      "explanation": "El flujo correcto incluye un loop: Usuario envía consulta → Cliente llama a Claude con tools disponibles → Si Claude quiere usar tools, Cliente ejecuta via MCP → Cliente envía resultados a Claude → Repetir hasta que Claude retorne respuesta final → Cliente muestra al usuario.",
+      "points": 0.5
+    },
+    {
+      "id": "mcp-test-q18",
+      "type": "MULTIPLE_CHOICE",
+      "question": "En un cliente MCP, cuando Claude responde con 'stop_reason: tool_use', ¿qué debe hacer el cliente?",
+      "options": [
+        "Retornar la respuesta al usuario inmediatamente",
+        "Ejecutar los tools solicitados, agregar resultados al contexto y continuar el loop",
+        "Solicitar confirmación al usuario antes de ejecutar",
+        "Reiniciar la conversación"
+      ],
+      "correctAnswer": 1,
+      "explanation": "Cuando stop_reason es 'tool_use', el cliente debe: 1) Ejecutar cada tool que Claude solicitó via MCP, 2) Agregar los resultados al contexto de mensajes con role 'user', 3) Continuar el loop para que Claude procese los resultados.",
+      "points": 0.5
+    },
+    {
+      "id": "mcp-test-q19",
+      "type": "MULTIPLE_CHOICE",
+      "question": "En Claude Code, ¿cómo se referencia un resource de GitHub en una conversación?",
+      "options": [
+        "#github:issue:123",
+        "@github:issue://123",
+        "${github.issue(123)}",
+        "mcp://github/issue/123"
+      ],
+      "correctAnswer": 1,
+      "explanation": "La sintaxis para referenciar recursos MCP en Claude Code es '@<servidor>:<tipo>://<identificador>'. Ejemplo: '@github:issue://123', '@postgres:schema://users', '@filesystem:file:///path/to/file'",
+      "points": 0.5
+    },
+    {
+      "id": "mcp-test-q20",
+      "type": "MULTIPLE_CHOICE",
+      "question": "¿Cómo se exponen los prompts de un servidor MCP en Claude Code?",
+      "options": [
+        "Como comandos de Bash",
+        "Como slash commands con formato /mcp__<servidor>__<prompt-name>",
+        "Como variables de entorno",
+        "Como archivos .prompt en el proyecto"
+      ],
+      "correctAnswer": 1,
+      "explanation": "Los prompts de servidores MCP se exponen automáticamente como slash commands con el formato '/mcp__<servidor>__<prompt-name>'. Ejemplo: '/mcp__github__list_prs', '/mcp__jira__sprint_report'",
+      "points": 0.5
+    }
+  ]
+}

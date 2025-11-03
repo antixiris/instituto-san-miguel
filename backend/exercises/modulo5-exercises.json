@@ -1,0 +1,320 @@
+{
+  "module": "Módulo 5: Model Context Protocol (MCP)",
+  "exercises": [
+    {
+      "id": "mcp-ex-1",
+      "lessonId": "5.1",
+      "type": "MULTIPLE_CHOICE",
+      "title": "Conceptos Fundamentales de MCP",
+      "instructions": "Selecciona la respuesta correcta para cada pregunta sobre los fundamentos de MCP.",
+      "points": 15,
+      "timeLimit": 600,
+      "config": {
+        "questions": [
+          {
+            "id": "q1",
+            "question": "¿Cuál es la mejor analogía para describir MCP según la documentación oficial?",
+            "options": [
+              "Es como un API REST para aplicaciones de IA",
+              "Es como un puerto USB-C para aplicaciones de IA",
+              "Es como un servidor web para modelos de lenguaje",
+              "Es como una base de datos para herramientas de IA"
+            ],
+            "correctAnswer": 1,
+            "explanation": "MCP se describe oficialmente como 'un puerto USB-C para aplicaciones de IA' porque proporciona un estándar universal de conectividad, igual que USB-C lo hizo para dispositivos físicos."
+          },
+          {
+            "id": "q2",
+            "question": "¿Cuáles son los tres actores principales en la arquitectura de MCP?",
+            "options": [
+              "Client, Server, Database",
+              "Host, Client, Server",
+              "Application, Protocol, Transport",
+              "User, Agent, Service"
+            ],
+            "correctAnswer": 1,
+            "explanation": "La arquitectura de MCP está compuesta por: MCP Host (la aplicación IA como Claude Code), MCP Client (conexión uno-a-uno con un servidor) y MCP Server (programa que expone herramientas y recursos)."
+          },
+          {
+            "id": "q3",
+            "question": "¿Qué relación mantiene un MCP Client con sus servidores?",
+            "options": [
+              "Un cliente puede conectarse a múltiples servidores simultáneamente",
+              "Relación muchos-a-muchos con servidores",
+              "Relación uno-a-uno: cada cliente se conecta a UN servidor",
+              "Un cliente solo puede conectarse a un servidor a la vez"
+            ],
+            "correctAnswer": 2,
+            "explanation": "Cada MCP Client mantiene una conexión dedicada uno-a-uno con su servidor correspondiente. Un Host puede tener múltiples clientes (uno por cada servidor), pero cada cliente se conecta exclusivamente a un único servidor."
+          },
+          {
+            "id": "q4",
+            "question": "¿Cuál de estos NO es un tipo de recurso que MCP permite acceder?",
+            "options": [
+              "Fuentes de datos (archivos, bases de datos)",
+              "Herramientas ejecutables (APIs, calculadoras)",
+              "Flujos de trabajo especializados (prompts, pipelines)",
+              "Modelos de lenguaje entrenados"
+            ],
+            "correctAnswer": 3,
+            "explanation": "MCP permite acceder a tres tipos de recursos: 1) Fuentes de datos, 2) Herramientas ejecutables, y 3) Flujos de trabajo. Los modelos de lenguaje NO son un recurso que MCP gestiona directamente."
+          },
+          {
+            "id": "q5",
+            "question": "En el caso de uso de 'Asistente Personal con Google Calendar y Notion', ¿cuál es el beneficio principal de usar MCP?",
+            "options": [
+              "Mayor velocidad de procesamiento",
+              "Eliminar la necesidad de APIs",
+              "Integración simple sin código custom para cada servicio",
+              "Almacenamiento local de datos"
+            ],
+            "correctAnswer": 2,
+            "explanation": "El beneficio principal es la integración simple y estandarizada. Con MCP, solo necesitas agregar servidores MCP en lugar de escribir código de integración custom para cada servicio (Google Calendar, Notion, etc.)."
+          }
+        ]
+      }
+    },
+    {
+      "id": "mcp-ex-2",
+      "lessonId": "5.2",
+      "type": "MATCHING_PAIRS",
+      "title": "Arquitectura de MCP: Capas y Primitivos",
+      "instructions": "Empareja cada componente de MCP con su descripción correcta.",
+      "points": 20,
+      "timeLimit": 480,
+      "config": {
+        "pairs": [
+          {
+            "left": "Data Layer",
+            "right": "Implementa JSON-RPC 2.0 y gestiona lifecycle, tools, resources y prompts"
+          },
+          {
+            "left": "Transport Layer",
+            "right": "Gestiona canales de comunicación (Stdio, HTTP, SSE) y autenticación"
+          },
+          {
+            "left": "Tools",
+            "right": "Funciones ejecutables que la aplicación IA puede invocar (ej: crear archivo, query DB)"
+          },
+          {
+            "left": "Resources",
+            "right": "Fuentes de datos que proporcionan información contextual (ej: contenido de archivos)"
+          },
+          {
+            "left": "Prompts",
+            "right": "Plantillas reutilizables para estructurar interacciones con modelos de lenguaje"
+          },
+          {
+            "left": "Sampling",
+            "right": "Permite a servidores solicitar completaciones de LLM desde el cliente"
+          },
+          {
+            "left": "Elicitation",
+            "right": "Permite a servidores solicitar información adicional del usuario"
+          },
+          {
+            "left": "Stdio Transport",
+            "right": "Comunicación via stdin/stdout para procesos locales, máximo performance"
+          }
+        ],
+        "explanation": "MCP tiene una arquitectura en capas clara: Data Layer (protocolo) y Transport Layer (comunicación). Los 6 primitivos son: Tools, Resources, Prompts (expuestos por servidores) y Sampling, Elicitation, Logging (expuestos por clientes)."
+      }
+    },
+    {
+      "id": "mcp-ex-3",
+      "lessonId": "5.3",
+      "type": "CODE_CHALLENGE",
+      "title": "Configuración de Servidores MCP",
+      "instructions": "Configura correctamente 3 servidores MCP diferentes usando los comandos CLI apropiados y crea un archivo .mcp.json válido.",
+      "points": 25,
+      "timeLimit": 1200,
+      "config": {
+        "challenge": "Debes configurar:\n\n1. **Servidor HTTP remoto (GitHub):**\n   - Transport: HTTP\n   - URL: https://api.githubcopilot.com/mcp/\n   - Scope: project\n   - Requiere autenticación OAuth\n\n2. **Servidor Stdio local (Filesystem):**\n   - Transport: Stdio\n   - Comando: npx -y @modelcontextprotocol/server-filesystem\n   - Directorio: ~/Documents\n   - Scope: local\n\n3. **Servidor con variables de entorno (PostgreSQL):**\n   - Transport: Stdio\n   - Comando: npx -y @bytebase/dbhub\n   - Variable: DB_URL\n   - Scope: project\n\nEscribe:\na) Los 3 comandos CLI para agregar estos servidores\nb) Un archivo .mcp.json que incluya configuración para GitHub y PostgreSQL con expansión de variables",
+        "validation": {
+          "requiredCommands": [
+            "claude mcp add --scope project --transport http",
+            "claude mcp add --transport stdio filesystem",
+            "claude mcp add --scope project --transport stdio"
+          ],
+          "requiredInJson": [
+            "mcpServers",
+            "github",
+            "postgres",
+            "${GITHUB_TOKEN}",
+            "${DB_URL}"
+          ]
+        },
+        "solution": "# Comandos CLI:\n\n# 1. GitHub (HTTP, project scope)\nclaude mcp add --scope project --transport http github https://api.githubcopilot.com/mcp/\n\n# 2. Filesystem (Stdio, local scope - default)\nclaude mcp add --transport stdio filesystem -- npx -y @modelcontextprotocol/server-filesystem ~/Documents\n\n# 3. PostgreSQL (Stdio, project scope, con env var)\nclaude mcp add --scope project --transport stdio postgres --env DB_URL=\"${DATABASE_URL}\" -- npx -y @bytebase/dbhub\n\n# Archivo .mcp.json:\n{\n  \"mcpServers\": {\n    \"github\": {\n      \"type\": \"http\",\n      \"url\": \"https://api.githubcopilot.com/mcp/\",\n      \"headers\": {\n        \"Authorization\": \"Bearer ${GITHUB_TOKEN}\"\n      }\n    },\n    \"postgres\": {\n      \"type\": \"stdio\",\n      \"command\": \"npx\",\n      \"args\": [\"-y\", \"@bytebase/dbhub\"],\n      \"env\": {\n        \"DB_URL\": \"${DATABASE_URL:-postgresql://localhost/default}\"\n      }\n    }\n  }\n}",
+        "points": {
+          "commands": 12,
+          "json": 10,
+          "security": 3
+        }
+      }
+    },
+    {
+      "id": "mcp-ex-4",
+      "lessonId": "5.4",
+      "type": "MULTIPLE_CHOICE",
+      "title": "Servidores MCP por Categoría",
+      "instructions": "Identifica el servidor MCP correcto para cada escenario.",
+      "points": 15,
+      "timeLimit": 600,
+      "config": {
+        "questions": [
+          {
+            "id": "q1",
+            "question": "Tu equipo necesita trackear errores de producción en tiempo real con stack traces. ¿Qué servidor MCP usarías?",
+            "options": [
+              "Jam",
+              "Sentry",
+              "Socket",
+              "Linear"
+            ],
+            "correctAnswer": 1,
+            "explanation": "Sentry es el servidor MCP especializado en error tracking y debugging, con acceso a errores en tiempo real, stack traces, estadísticas de estabilidad y creación de issues."
+          },
+          {
+            "id": "q2",
+            "question": "Estás construyendo un e-commerce y necesitas procesar pagos y subscripciones. ¿Qué servidor usarías?",
+            "options": [
+              "PayPal",
+              "Square",
+              "Stripe",
+              "Plaid"
+            ],
+            "correctAnswer": 2,
+            "explanation": "Stripe es el servidor MCP más completo para pagos y subscripciones, con features de payment processing, customers, productos, invoices y analytics de revenue."
+          },
+          {
+            "id": "q3",
+            "question": "Tu aplicación necesita convertir diseños de Figma directamente en componentes React. ¿Qué servidor MCP te ayudaría?",
+            "options": [
+              "Canva",
+              "Cloudinary",
+              "Figma",
+              "GitHub"
+            ],
+            "correctAnswer": 2,
+            "explanation": "El servidor MCP de Figma permite acceder a diseños, componentes, estilos y exportar assets, facilitando la conversión de diseños en código."
+          },
+          {
+            "id": "q4",
+            "question": "Necesitas ejecutar queries SQL y analizar schemas de una base de datos PostgreSQL. ¿Qué servidor usarías?",
+            "options": [
+              "SQLite server",
+              "Airtable server",
+              "PostgreSQL server (@bytebase/dbhub)",
+              "Filesystem server"
+            ],
+            "correctAnswer": 2,
+            "explanation": "El servidor PostgreSQL (@bytebase/dbhub) proporciona queries SQL, inspección de schemas, explain query plans y estadísticas de tablas."
+          },
+          {
+            "id": "q5",
+            "question": "Para un proyecto de startup que necesita GitHub + Sentry + Linear + Notion, ¿cuál sería el orden correcto de prioridad para implementar?",
+            "options": [
+              "Notion → Linear → GitHub → Sentry",
+              "GitHub → Sentry → Linear → Notion",
+              "Sentry → GitHub → Notion → Linear",
+              "Linear → Notion → GitHub → Sentry"
+            ],
+            "correctAnswer": 1,
+            "explanation": "La prioridad correcta es: 1) GitHub (código es fundamental), 2) Sentry (monitoreo de errores es crítico), 3) Linear (gestión de issues), 4) Notion (documentación, menos crítico para operaciones diarias)."
+          }
+        ]
+      }
+    },
+    {
+      "id": "mcp-ex-5",
+      "lessonId": "5.5",
+      "type": "CODE_CHALLENGE",
+      "title": "Crear Servidor MCP Personalizado",
+      "instructions": "Crea un servidor MCP funcional con al menos 3 tools, 1 resource y 1 prompt. Puede ser en Python (FastMCP) o TypeScript.",
+      "points": 30,
+      "timeLimit": 1800,
+      "config": {
+        "challenge": "Crea un servidor MCP llamado 'notes-manager' que permita:\n\n**Tools requeridos:**\n1. `create_note(title, content, tags=[])` - Crear nota con título, contenido y tags opcionales\n2. `list_notes(tag=None)` - Listar notas, opcionalmente filtradas por tag\n3. `delete_note(note_id)` - Eliminar nota por ID\n\n**Resource requerido:**\n1. `notes://all` - Retornar todas las notas en formato JSON\n\n**Prompt requerido:**\n1. `summarize_notes` - Template para resumir todas las notas\n\n**Requisitos técnicos:**\n- Almacenamiento en memoria (dict o lista)\n- Manejo de errores (nota no encontrada, etc.)\n- Logging apropiado (stderr para stdio)\n- Documentación clara en docstrings\n- Validación de inputs\n\nEntrega el código completo del servidor.",
+        "validation": {
+          "requiredElements": [
+            "@mcp.tool()",
+            "create_note",
+            "list_notes",
+            "delete_note",
+            "@mcp.resource",
+            "notes://all",
+            "@mcp.prompt()",
+            "summarize_notes"
+          ],
+          "codeQuality": [
+            "docstrings",
+            "error_handling",
+            "input_validation"
+          ]
+        },
+        "rubric": {
+          "tools_implementation": 12,
+          "resource_implementation": 5,
+          "prompt_implementation": 5,
+          "error_handling": 4,
+          "documentation": 4
+        }
+      }
+    },
+    {
+      "id": "mcp-ex-6",
+      "lessonId": "5.7",
+      "type": "SEQUENCE_ORDER",
+      "title": "Workflow de Integración MCP Completo",
+      "instructions": "Ordena los pasos para implementar un workflow completo de 'Deploy Automatizado' usando múltiples servidores MCP.",
+      "points": 20,
+      "timeLimit": 600,
+      "config": {
+        "items": [
+          {
+            "id": "step1",
+            "text": "Usuario en Claude Code: 'Deploy rama feature-auth a staging'"
+          },
+          {
+            "id": "step2",
+            "text": "Claude Code identifica servidores MCP necesarios (github, vercel, slack)"
+          },
+          {
+            "id": "step3",
+            "text": "Verificar tests en GitHub: @github:branch://feature-auth para ver status de CI"
+          },
+          {
+            "id": "step4",
+            "text": "Si tests pasaron, llamar tool: github.get_branch_status('feature-auth')"
+          },
+          {
+            "id": "step5",
+            "text": "Iniciar deploy en Vercel: vercel.deploy(branch='feature-auth', environment='staging')"
+          },
+          {
+            "id": "step6",
+            "text": "Notificar inicio: slack.send_message(channel='#deployments', text='Deploy iniciado')"
+          },
+          {
+            "id": "step7",
+            "text": "Poll Vercel status: vercel.get_deployment_status(deployment_id) hasta completar"
+          },
+          {
+            "id": "step8",
+            "text": "Si deploy exitoso, notificar: slack.send_message(channel='#deployments', text='✅ Deploy completo: [URL]')"
+          },
+          {
+            "id": "step9",
+            "text": "Si deploy falló, notificar error: slack.send_message(channel='#deployments', text='❌ Deploy falló: [error]')"
+          },
+          {
+            "id": "step10",
+            "text": "Retornar resumen al usuario con URL de staging y duración del deploy"
+          }
+        ],
+        "correctOrder": ["step1", "step2", "step3", "step4", "step5", "step6", "step7", "step8", "step10"],
+        "explanation": "El workflow correcto es: 1) Usuario solicita, 2) Claude Code identifica servidores, 3-4) Verificación de tests en GitHub, 5) Deploy en Vercel, 6) Notificar inicio en Slack, 7) Monitorear status, 8) Notificar resultado (éxito), 10) Retornar resumen. El step9 es alternativo (solo si falla)."
+      }
+    }
+  ]
+}

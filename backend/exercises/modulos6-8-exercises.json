@@ -1,0 +1,686 @@
+{
+  "modules": ["Módulo 6", "Módulo 7", "Módulo 8"],
+  "exercises": [
+    {
+      "id": "m6-ex-1",
+      "moduleId": "6",
+      "lessonId": "6.1",
+      "type": "CODE_CHALLENGE",
+      "title": "GitHub Actions Workflow con Claude Code",
+      "instructions": "Crea un workflow completo de GitHub Actions que integre Claude Code para automatizar code review y testing.",
+      "points": 30,
+      "timeLimit": 1200,
+      "config": {
+        "challenge": "Diseña e implementa un workflow de GitHub Actions que:\n\n**Requisitos:**\n1. Se ejecute en cada Pull Request\n2. Instale Claude Code en el runner\n3. Ejecute análisis de código automático\n4. Genere comentarios en el PR con hallazgos\n5. Falle el workflow si hay issues críticos\n6. Genere reporte de coverage y calidad\n\n**Componentes necesarios:**\n- Workflow YAML (.github/workflows/claude-review.yml)\n- Script de integración (scripts/claude-ci.sh)\n- Configuración de Claude Code para CI\n- Template de comentarios para PR\n\n**Bonus (5 pts extra):**\n- Implementar caching de dependencias\n- Usar matrix strategy para múltiples versiones de Node\n- Integrar con GitHub Checks API\n\n**Entrega:**\n1. Archivo workflow completo\n2. Scripts auxiliares necesarios\n3. Ejemplo de output esperado en PR",
+        "validation": {
+          "requiredElements": [
+            "name: Claude Code Review",
+            "on: [pull_request]",
+            "ANTHROPIC_API_KEY",
+            "claude analyze",
+            "github-script",
+            "pull_request.number"
+          ]
+        },
+        "solution": "# Archivo: .github/workflows/claude-review.yml\n\n```yaml\nname: Claude Code Review\n\non:\n  pull_request:\n    types: [opened, synchronize, reopened]\n    branches:\n      - main\n      - develop\n\nenv:\n  NODE_VERSION: '18.x'\n\njobs:\n  claude-analysis:\n    name: AI-Powered Code Review\n    runs-on: ubuntu-latest\n    timeout-minutes: 15\n\n    permissions:\n      contents: read\n      pull-requests: write\n      checks: write\n\n    steps:\n      # 1. Checkout código\n      - name: Checkout PR code\n        uses: actions/checkout@v4\n        with:\n          fetch-depth: 0  # Historia completa para análisis\n          ref: ${{ github.event.pull_request.head.sha }}\n\n      # 2. Setup Node.js con caching\n      - name: Setup Node.js\n        uses: actions/setup-node@v4\n        with:\n          node-version: ${{ env.NODE_VERSION }}\n          cache: 'npm'\n\n      # 3. Instalar dependencias\n      - name: Install dependencies\n        run: |\n          npm ci --prefer-offline --no-audit\n          npm install -g @anthropic-ai/claude-code\n\n      # 4. Configurar Claude Code\n      - name: Configure Claude Code\n        env:\n          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}\n        run: |\n          mkdir -p ~/.config/claude-code\n          cat > ~/.config/claude-code/config.json <<EOF\n          {\n            \"model\": \"claude-3-5-sonnet-20241022\",\n            \"maxTokens\": 4096,\n            \"headless\": true,\n            \"ci\": true,\n            \"outputFormat\": \"json\"\n          }\n          EOF\n\n      # 5. Obtener archivos modificados\n      - name: Get changed files\n        id: changed-files\n        run: |\n          # Comparar con base branch\n          BASE_SHA=${{ github.event.pull_request.base.sha }}\n          HEAD_SHA=${{ github.event.pull_request.head.sha }}\n          \n          CHANGED_FILES=$(git diff --name-only $BASE_SHA $HEAD_SHA | grep -E '\\.(ts|js|tsx|jsx)$' || true)\n          \n          echo \"Changed files:\"\n          echo \"$CHANGED_FILES\"\n          \n          # Guardar para siguientes steps\n          echo \"files<<EOF\" >> $GITHUB_OUTPUT\n          echo \"$CHANGED_FILES\" >> $GITHUB_OUTPUT\n          echo \"EOF\" >> $GITHUB_OUTPUT\n\n      # 6. Ejecutar análisis con Claude Code\n      - name: Run Claude Code Analysis\n        id: claude-analysis\n        env:\n          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}\n        run: |\n          chmod +x ./scripts/claude-ci.sh\n          ./scripts/claude-ci.sh \"${{ steps.changed-files.outputs.files }}\"\n        continue-on-error: true\n\n      # 7. Parsear resultados\n      - name: Parse analysis results\n        id: parse-results\n        run: |\n          if [ -f claude-report.json ]; then\n            CRITICAL=$(jq -r '.issues[] | select(.severity==\"critical\") | .title' claude-report.json | wc -l)\n            HIGH=$(jq -r '.issues[] | select(.severity==\"high\") | .title' claude-report.json | wc -l)\n            MEDIUM=$(jq -r '.issues[] | select(.severity==\"medium\") | .title' claude-report.json | wc -l)\n            \n            echo \"critical=$CRITICAL\" >> $GITHUB_OUTPUT\n            echo \"high=$HIGH\" >> $GITHUB_OUTPUT\n            echo \"medium=$MEDIUM\" >> $GITHUB_OUTPUT\n            \n            # Determinar si debe fallar\n            if [ \"$CRITICAL\" -gt 0 ]; then\n              echo \"should_fail=true\" >> $GITHUB_OUTPUT\n            else\n              echo \"should_fail=false\" >> $GITHUB_OUTPUT\n            fi\n          else\n            echo \"No report generated\"\n            exit 1\n          fi\n\n      # 8. Generar comentario en PR\n      - name: Comment PR\n        uses: actions/github-script@v7\n        with:\n          script: |\n            const fs = require('fs');\n            const report = JSON.parse(fs.readFileSync('claude-report.json', 'utf8'));\n            \n            // Construir comentario\n            let comment = `## 🤖 Claude Code Review\\n\\n`;\n            comment += `**Análisis completado en:** ${report.duration}s\\n`;\n            comment += `**Archivos analizados:** ${report.filesAnalyzed}\\n\\n`;\n            \n            // Summary\n            comment += `### 📊 Resumen\\n\\n`;\n            comment += `- 🔴 Critical: ${report.summary.critical}\\n`;\n            comment += `- 🟠 High: ${report.summary.high}\\n`;\n            comment += `- 🟡 Medium: ${report.summary.medium}\\n`;\n            comment += `- 🟢 Low: ${report.summary.low}\\n\\n`;\n            \n            // Critical issues (detalle)\n            if (report.summary.critical > 0) {\n              comment += `### 🔴 Issues Críticos\\n\\n`;\n              report.issues\n                .filter(i => i.severity === 'critical')\n                .forEach(issue => {\n                  comment += `#### ${issue.title}\\n`;\n                  comment += `**File:** \`${issue.file}:${issue.line}\`\\n`;\n                  comment += `**Description:** ${issue.description}\\n`;\n                  comment += `**Fix:**\\n\`\`\`${issue.language || 'typescript'}\\n${issue.suggestedFix}\\n\`\`\`\\n\\n`;\n                });\n            }\n            \n            // High issues (solo títulos)\n            if (report.summary.high > 0) {\n              comment += `### 🟠 Issues de Alta Prioridad\\n\\n`;\n              report.issues\n                .filter(i => i.severity === 'high')\n                .forEach(issue => {\n                  comment += `- **${issue.title}** - \`${issue.file}:${issue.line}\`\\n`;\n                });\n              comment += `\\n`;\n            }\n            \n            // Recommendations\n            if (report.recommendations && report.recommendations.length > 0) {\n              comment += `### 💡 Recomendaciones\\n\\n`;\n              report.recommendations.forEach(rec => {\n                comment += `- ${rec}\\n`;\n              });\n            }\n            \n            // Footer\n            comment += `\\n---\\n`;\n            comment += `*Powered by Claude Code | [View full report](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})*`;\n            \n            // Post comment\n            await github.rest.issues.createComment({\n              owner: context.repo.owner,\n              repo: context.repo.repo,\n              issue_number: context.issue.number,\n              body: comment\n            });\n\n      # 9. Crear check\n      - name: Create Check\n        uses: actions/github-script@v7\n        with:\n          script: |\n            const fs = require('fs');\n            const report = JSON.parse(fs.readFileSync('claude-report.json', 'utf8'));\n            \n            const conclusion = report.summary.critical > 0 ? 'failure' : 'success';\n            const summary = `Found ${report.summary.critical} critical, ${report.summary.high} high, ${report.summary.medium} medium issues`;\n            \n            await github.rest.checks.create({\n              owner: context.repo.owner,\n              repo: context.repo.repo,\n              name: 'Claude Code Analysis',\n              head_sha: context.payload.pull_request.head.sha,\n              status: 'completed',\n              conclusion: conclusion,\n              output: {\n                title: 'AI Code Review',\n                summary: summary,\n                text: JSON.stringify(report, null, 2)\n              }\n            });\n\n      # 10. Fallar si hay issues críticos\n      - name: Fail if critical issues\n        if: steps.parse-results.outputs.should_fail == 'true'\n        run: |\n          echo \"❌ Found critical issues. Please fix before merging.\"\n          exit 1\n\n      # 11. Upload report como artifact\n      - name: Upload report\n        uses: actions/upload-artifact@v4\n        if: always()\n        with:\n          name: claude-code-report\n          path: |\n            claude-report.json\n            claude-full-log.txt\n          retention-days: 30\n```\n\n# Archivo: scripts/claude-ci.sh\n\n```bash\n#!/bin/bash\nset -euo pipefail\n\nCHANGED_FILES=\"$1\"\n\necho \"🤖 Starting Claude Code CI Analysis...\"\necho \"\"\n\n# Verificar que hay archivos para analizar\nif [ -z \"$CHANGED_FILES\" ]; then\n  echo \"No files to analyze. Skipping.\"\n  echo '{\"filesAnalyzed\": 0, \"issues\": [], \"summary\": {\"critical\": 0, \"high\": 0, \"medium\": 0, \"low\": 0}}' > claude-report.json\n  exit 0\nfi\n\n# Crear prompt para Claude\ncat > analysis-prompt.txt <<EOF\nAnalyze the following files for:\n1. Security vulnerabilities (SQL injection, XSS, hardcoded secrets)\n2. Code quality issues (complexity, duplication, bad patterns)\n3. Performance problems\n4. Best practices violations\n5. Type safety issues\n\nFor each issue found, provide:\n- Severity: critical/high/medium/low\n- File and line number\n- Clear description\n- Suggested fix with code\n\nFiles to analyze:\n$CHANGED_FILES\n\nOutput format: JSON with structure:\n{\n  \"filesAnalyzed\": number,\n  \"duration\": number (seconds),\n  \"issues\": [\n    {\n      \"severity\": \"critical|high|medium|low\",\n      \"title\": \"Issue title\",\n      \"file\": \"path/to/file.ts\",\n      \"line\": number,\n      \"description\": \"Detailed description\",\n      \"suggestedFix\": \"Fixed code\",\n      \"language\": \"typescript\"\n    }\n  ],\n  \"summary\": {\n    \"critical\": number,\n    \"high\": number,\n    \"medium\": number,\n    \"low\": number\n  },\n  \"recommendations\": [\"General recommendations\"]\n}\nEOF\n\n# Ejecutar Claude Code\nSTART_TIME=$(date +%s)\n\nclaude --headless < analysis-prompt.txt > claude-raw-output.txt 2>&1 || true\n\nEND_TIME=$(date +%s)\nDURATION=$((END_TIME - START_TIME))\n\n# Extraer JSON del output (Claude puede incluir texto adicional)\ngrep -o '{.*}' claude-raw-output.txt | tail -1 > claude-report.json || {\n  # Si no hay JSON válido, crear reporte de error\n  echo \"⚠️  Failed to parse Claude output\"\n  echo '{\"filesAnalyzed\": 0, \"issues\": [], \"summary\": {\"critical\": 0, \"high\": 0, \"medium\": 0, \"low\": 0}, \"error\": \"Failed to analyze\"}' > claude-report.json\n  exit 1\n}\n\n# Agregar duration al report\njq \". + {duration: $DURATION}\" claude-report.json > tmp.json && mv tmp.json claude-report.json\n\n# Guardar log completo\ncp claude-raw-output.txt claude-full-log.txt\n\necho \"\"\necho \"✅ Analysis complete!\"\njq -r '.summary | \"Critical: \\(.critical), High: \\(.high), Medium: \\(.medium), Low: \\(.low)\"' claude-report.json\n```\n\n# Ejemplo de Output en PR:\n\n```markdown\n## 🤖 Claude Code Review\n\n**Análisis completado en:** 23s\n**Archivos analizados:** 8\n\n### 📊 Resumen\n\n- 🔴 Critical: 2\n- 🟠 High: 5\n- 🟡 Medium: 8\n- 🟢 Low: 3\n\n### 🔴 Issues Críticos\n\n#### SQL Injection Vulnerability\n**File:** `src/api/users.controller.ts:45`\n**Description:** Direct string concatenation in SQL query allows injection attacks\n**Fix:**\n```typescript\n// ❌ Vulnerable\nconst query = `SELECT * FROM users WHERE email = '${email}'`;\n\n// ✅ Secure\nconst query = 'SELECT * FROM users WHERE email = ?';\nconst result = await db.query(query, [email]);\n```\n\n#### Hardcoded API Key\n**File:** `src/config/stripe.ts:12`\n**Description:** Stripe API key is hardcoded in source code\n**Fix:**\n```typescript\n// ❌ Hardcoded\nconst stripe = new Stripe('sk_live_51H...');\n\n// ✅ Environment variable\nconst stripe = new Stripe(process.env.STRIPE_API_KEY!);\n```\n\n### 🟠 Issues de Alta Prioridad\n\n- **Missing Input Validation** - `src/api/auth.controller.ts:28`\n- **Unhandled Promise Rejection** - `src/services/email.service.ts:67`\n- **Weak Password Hashing** - `src/auth/password.util.ts:15`\n- **Missing Error Boundaries** - `src/components/Dashboard.tsx:89`\n- **Potential Memory Leak** - `src/hooks/useWebSocket.ts:34`\n\n### 💡 Recomendaciones\n\n- Implementar input validation con Zod o Joi en todos los endpoints\n- Agregar rate limiting para prevenir ataques de fuerza bruta\n- Configurar ESLint con plugins de seguridad\n- Implementar logging centralizado para auditoría\n\n---\n*Powered by Claude Code | [View full report](https://github.com/org/repo/actions/runs/123456789)*\n```",
+        "rubric": {
+          "workflow_yaml": 10,
+          "integration_script": 8,
+          "pr_comment": 6,
+          "error_handling": 3,
+          "bonus_features": 3
+        }
+      }
+    },
+    {
+      "id": "m6-ex-2",
+      "moduleId": "6",
+      "lessonId": "6.3",
+      "type": "MULTIPLE_CHOICE",
+      "title": "Headless Mode y Scripting",
+      "instructions": "Responde sobre el uso de Claude Code en modo headless para automatización.",
+      "points": 20,
+      "timeLimit": 600,
+      "config": {
+        "questions": [
+          {
+            "id": "q1",
+            "question": "¿Cuál es la principal diferencia entre modo interactivo y headless en Claude Code?",
+            "options": [
+              "Headless es más rápido",
+              "Headless no requiere intervención humana y puede ejecutarse en scripts/CI",
+              "Headless usa menos tokens",
+              "No hay diferencia real"
+            ],
+            "correctAnswer": 1,
+            "explanation": "Headless mode permite ejecutar Claude Code sin interacción humana, perfecto para automatización en CI/CD pipelines, cron jobs, o scripts batch. El modo interactivo requiere que un humano esté presente para aprobar acciones."
+          },
+          {
+            "id": "q2",
+            "question": "¿Cómo se activa el modo headless en Claude Code?",
+            "options": [
+              "claude --no-interactive",
+              "claude --headless o CLAUDE_HEADLESS=true",
+              "claude -h",
+              "Se activa automáticamente en CI"
+            ],
+            "correctAnswer": 1,
+            "explanation": "Se puede activar con el flag --headless en la CLI o configurando la variable de entorno CLAUDE_HEADLESS=true. Esto desactiva todos los prompts interactivos."
+          },
+          {
+            "id": "q3",
+            "question": "En modo headless, ¿cómo se pasa el input a Claude Code?",
+            "options": [
+              "Solo por argumentos de CLI",
+              "Via stdin (pipe), archivos, o variables de entorno",
+              "No se puede pasar input",
+              "Solo via API REST"
+            ],
+            "correctAnswer": 1,
+            "explanation": "En headless mode, puedes pasar input via: stdin (echo 'prompt' | claude --headless), archivos (claude --headless < prompt.txt), o variables de entorno (CLAUDE_PROMPT='...' claude --headless)."
+          },
+          {
+            "id": "q4",
+            "question": "¿Cuál es un caso de uso válido para headless mode?",
+            "options": [
+              "Desarrollo interactivo de features",
+              "Nightly batch job que genera reportes de calidad de código",
+              "Pair programming",
+              "Code review manual"
+            ],
+            "correctAnswer": 1,
+            "explanation": "Headless mode es ideal para tareas automatizadas como: nightly jobs de análisis, generación automatizada de documentación, refactoring batch de múltiples repositorios, testing automatizado, etc."
+          },
+          {
+            "id": "q5",
+            "question": "En headless mode, ¿cómo se maneja el output de Claude Code?",
+            "options": [
+              "Se imprime siempre en la consola",
+              "Se puede redirigir a archivos, logs, o parsear con jq para JSON",
+              "No hay output en headless",
+              "Solo se envía por email"
+            ],
+            "correctAnswer": 1,
+            "explanation": "El output de headless mode va a stdout/stderr y puede ser redirigido a archivos, parseado (si usas --output-format json), o enviado a sistemas de logging. Ejemplo: claude --headless --output-format json < prompt.txt > result.json"
+          }
+        ]
+      }
+    },
+    {
+      "id": "m6-ex-3",
+      "moduleId": "6",
+      "lessonId": "6.4",
+      "type": "MATCHING_PAIRS",
+      "title": "Trabajo en Equipo con Claude Code",
+      "instructions": "Empareja cada escenario de trabajo en equipo con la mejor práctica de Claude Code.",
+      "points": 20,
+      "timeLimit": 420,
+      "config": {
+        "pairs": [
+          {
+            "left": "Onboarding de nuevo desarrollador al proyecto",
+            "right": "Comando custom /onboard que genera tour del codebase + setup automático + tasks iniciales"
+          },
+          {
+            "left": "Establecer estándares de código para todo el equipo",
+            "right": "Subagent code-reviewer compartido en .claude/ con reglas del equipo"
+          },
+          {
+            "left": "Compartir comandos útiles entre el equipo",
+            "right": "Repositorio de slash commands en .claude/commands/ committeado en Git"
+          },
+          {
+            "left": "Auditar quién usó Claude Code y qué cambios hizo",
+            "right": "Hooks de logging centralizados que registran todas las operaciones"
+          },
+          {
+            "left": "Prevenir que Claude modifique archivos críticos",
+            "right": "Configuración managed-settings.json con reglas de escritura"
+          },
+          {
+            "left": "Documentar decisiones arquitectónicas del equipo",
+            "right": "Prompts MCP que generan ADRs (Architecture Decision Records) consistentes"
+          }
+        ],
+        "explanation": "Trabajar en equipo con Claude Code requiere: 1) Compartir configuración via Git, 2) Estandarizar workflows con comandos custom, 3) Auditar con hooks, 4) Proteger archivos críticos con policies, 5) Documentar decisiones consistentemente."
+      }
+    },
+    {
+      "id": "m6-ex-4",
+      "moduleId": "6",
+      "lessonId": "6.5",
+      "type": "FILL_IN_BLANK",
+      "title": "Patrones Profesionales de Uso",
+      "instructions": "Completa las mejores prácticas profesionales para uso de Claude Code en equipos.",
+      "points": 15,
+      "timeLimit": 480,
+      "config": {
+        "template": "# Mejores Prácticas Profesionales\n\n## 1. Versión Control\nTodo el proyecto debe tener un directorio {{blank1}} committeado en Git con:\n- Comandos custom compartidos\n- Subagents del equipo\n- {{blank2}} de configuración\n\n## 2. Seguridad\nNunca committear:\n- Archivos {{blank3}} con API keys\n- {{blank4}} en .claude/config.json\n- Logs con información sensible\n\n## 3. CI/CD\nPara integración continua, usar:\n- {{blank5}} mode para ejecución sin intervención\n- Variables de entorno para {{blank6}}\n- Output format {{blank7}} para parsing automático\n\n## 4. Costos\nOptimizar uso de tokens:\n- Usar modelo {{blank8}} para tareas simples (más barato)\n- Cachear {{blank9}} repetitivas\n- Implementar {{blank10}} para tareas largas\n\n## 5. Calidad\nCada PR debe pasar:\n- Review automatizado con subagent {{blank11}}\n- Tests generados con coverage mínimo {{blank12}}%\n- Documentación actualizada automáticamente",
+        "blanks": [
+          {
+            "id": "blank1",
+            "correctAnswers": [".claude", ".claude/"],
+            "hint": "Directorio de configuración de Claude Code"
+          },
+          {
+            "id": "blank2",
+            "correctAnswers": ["templates", "plantillas", "hooks"],
+            "hint": "Elementos compartibles de configuración"
+          },
+          {
+            "id": "blank3",
+            "correctAnswers": [".env", ".env.local", "secrets"],
+            "hint": "Archivos con variables sensibles"
+          },
+          {
+            "id": "blank4",
+            "correctAnswers": ["ANTHROPIC_API_KEY", "API keys", "secrets", "tokens"],
+            "hint": "Credenciales que no deben estar en Git"
+          },
+          {
+            "id": "blank5",
+            "correctAnswers": ["headless", "--headless"],
+            "hint": "Modo sin interacción humana"
+          },
+          {
+            "id": "blank6",
+            "correctAnswers": ["secrets", "API keys", "credentials", "authentication"],
+            "hint": "Datos sensibles en CI"
+          },
+          {
+            "id": "blank7",
+            "correctAnswers": ["json", "JSON"],
+            "hint": "Formato estructurado para parsing"
+          },
+          {
+            "id": "blank8",
+            "correctAnswers": ["haiku", "claude-haiku", "Haiku"],
+            "hint": "Modelo más rápido y económico de Claude"
+          },
+          {
+            "id": "blank9",
+            "correctAnswers": ["operaciones", "queries", "consultas", "análisis"],
+            "hint": "Acciones que se repiten"
+          },
+          {
+            "id": "blank10",
+            "correctAnswers": ["checkpointing", "checkpoints", "state management"],
+            "hint": "Guardar progreso intermedio"
+          },
+          {
+            "id": "blank11",
+            "correctAnswers": ["code-reviewer", "security-scanner", "quality-checker"],
+            "hint": "Subagent para verificar código"
+          },
+          {
+            "id": "blank12",
+            "correctAnswers": ["80", "85", "90"],
+            "hint": "Porcentaje mínimo típico de cobertura"
+          }
+        ],
+        "explanation": "Profesionalizar Claude Code en equipos requiere: configuración versionada, seguridad (secrets management), integración CI/CD (headless mode), optimización de costos (modelos apropiados), y estándares de calidad (automated reviews)."
+      }
+    },
+    {
+      "id": "m7-ex-1",
+      "moduleId": "7",
+      "lessonId": "7.2",
+      "type": "CODE_CHALLENGE",
+      "title": "Integración con AWS Bedrock",
+      "instructions": "Configura Claude Code para usar Amazon Bedrock en entorno empresarial con IAM roles y VPC.",
+      "points": 35,
+      "timeLimit": 1500,
+      "config": {
+        "challenge": "Implementa una configuración completa de Claude Code con AWS Bedrock que incluya:\n\n**Requisitos de Infraestructura:**\n1. IAM Role con permisos mínimos necesarios (least privilege)\n2. VPC Endpoint para Bedrock (sin internet pública)\n3. CloudWatch Logs para auditoría\n4. KMS encryption para datos en tránsito/reposo\n5. Secrets Manager para API credentials\n\n**Requisitos de Configuración:**\n1. Terraform/CloudFormation para infrastructure as code\n2. Claude Code config apuntando a Bedrock\n3. Script de setup automatizado\n4. Health check y monitoring\n5. Disaster recovery plan\n\n**Requisitos de Seguridad:**\n1. Network isolation (private subnets)\n2. Encryption at rest y in transit\n3. Audit logging de todas las requests\n4. Rate limiting y quotas\n5. Compliance con SOC2/HIPAA\n\n**Entrega:**\n1. Archivos Terraform/CloudFormation\n2. Claude Code configuration\n3. Scripts de deployment\n4. Documentación de arquitectura\n5. Runbook operacional",
+        "validation": {
+          "requiredElements": [
+            "aws_iam_role",
+            "bedrock:InvokeModel",
+            "vpc_endpoint",
+            "kms_key",
+            "cloudwatch_log_group",
+            "aws_region",
+            "model_id"
+          ]
+        },
+        "solution": "# Parte 1: Terraform Infrastructure\n\n## main.tf\n\n```hcl\nterraform {\n  required_version = \">= 1.0\"\n  required_providers {\n    aws = {\n      source  = \"hashicorp/aws\"\n      version = \"~> 5.0\"\n    }\n  }\n\n  backend \"s3\" {\n    bucket = \"company-terraform-state\"\n    key    = \"claude-code/bedrock/terraform.tfstate\"\n    region = \"us-east-1\"\n    encrypt = true\n  }\n}\n\nprovider \"aws\" {\n  region = var.aws_region\n\n  default_tags {\n    tags = {\n      Project     = \"ClaudeCode-Bedrock\"\n      Environment = var.environment\n      ManagedBy   = \"Terraform\"\n      CostCenter  = \"Engineering\"\n    }\n  }\n}\n\n# Variables\nvariable \"aws_region\" {\n  description = \"AWS region for Bedrock\"\n  type        = string\n  default     = \"us-east-1\"\n}\n\nvariable \"environment\" {\n  description = \"Environment (dev, staging, prod)\"\n  type        = string\n}\n\nvariable \"vpc_id\" {\n  description = \"VPC ID for private networking\"\n  type        = string\n}\n\nvariable \"private_subnet_ids\" {\n  description = \"Private subnet IDs for VPC endpoint\"\n  type        = list(string)\n}\n\n# KMS Key for encryption\nresource \"aws_kms_key\" \"bedrock\" {\n  description             = \"KMS key for Claude Code Bedrock encryption\"\n  deletion_window_in_days = 30\n  enable_key_rotation     = true\n\n  policy = jsonencode({\n    Version = \"2012-10-17\"\n    Statement = [\n      {\n        Sid    = \"Enable IAM User Permissions\"\n        Effect = \"Allow\"\n        Principal = {\n          AWS = \"arn:aws:iam::${data.aws_caller_identity.current.account_id}:root\"\n        }\n        Action   = \"kms:*\"\n        Resource = \"*\"\n      },\n      {\n        Sid    = \"Allow Bedrock to use the key\"\n        Effect = \"Allow\"\n        Principal = {\n          Service = \"bedrock.amazonaws.com\"\n        }\n        Action = [\n          \"kms:Decrypt\",\n          \"kms:GenerateDataKey\"\n        ]\n        Resource = \"*\"\n      }\n    ]\n  })\n}\n\nresource \"aws_kms_alias\" \"bedrock\" {\n  name          = \"alias/claude-code-bedrock-${var.environment}\"\n  target_key_id = aws_kms_key.bedrock.key_id\n}\n\n# VPC Endpoint for Bedrock (private access)\nresource \"aws_vpc_endpoint\" \"bedrock_runtime\" {\n  vpc_id              = var.vpc_id\n  service_name        = \"com.amazonaws.${var.aws_region}.bedrock-runtime\"\n  vpc_endpoint_type   = \"Interface\"\n  subnet_ids          = var.private_subnet_ids\n  security_group_ids  = [aws_security_group.bedrock_endpoint.id]\n  private_dns_enabled = true\n\n  tags = {\n    Name = \"bedrock-runtime-endpoint-${var.environment}\"\n  }\n}\n\n# Security Group for VPC Endpoint\nresource \"aws_security_group\" \"bedrock_endpoint\" {\n  name_description = \"Security group for Bedrock VPC endpoint\"\n  vpc_id          = var.vpc_id\n\n  ingress {\n    description = \"HTTPS from VPC\"\n    from_port   = 443\n    to_port     = 443\n    protocol    = \"tcp\"\n    cidr_blocks = [data.aws_vpc.main.cidr_block]\n  }\n\n  egress {\n    description = \"Allow all outbound\"\n    from_port   = 0\n    to_port     = 0\n    protocol    = \"-1\"\n    cidr_blocks = [\"0.0.0.0/0\"]\n  }\n\n  tags = {\n    Name = \"bedrock-endpoint-sg-${var.environment}\"\n  }\n}\n\n# IAM Role for Claude Code application\nresource \"aws_iam_role\" \"claude_code\" {\n  name = \"claude-code-bedrock-role-${var.environment}\"\n\n  assume_role_policy = jsonencode({\n    Version = \"2012-10-17\"\n    Statement = [\n      {\n        Action = \"sts:AssumeRole\"\n        Effect = \"Allow\"\n        Principal = {\n          Service = \"ec2.amazonaws.com\"\n        }\n      },\n      {\n        Action = \"sts:AssumeRole\"\n        Effect = \"Allow\"\n        Principal = {\n          AWS = \"arn:aws:iam::${data.aws_caller_identity.current.account_id}:root\"\n        }\n        Condition = {\n          StringEquals = {\n            \"sts:ExternalId\" = var.external_id\n          }\n        }\n      }\n    ]\n  })\n}\n\n# IAM Policy for Bedrock access (least privilege)\nresource \"aws_iam_role_policy\" \"bedrock_access\" {\n  name = \"bedrock-access-policy\"\n  role = aws_iam_role.claude_code.id\n\n  policy = jsonencode({\n    Version = \"2012-10-17\"\n    Statement = [\n      {\n        Sid    = \"BedrockInvokeModel\"\n        Effect = \"Allow\"\n        Action = [\n          \"bedrock:InvokeModel\",\n          \"bedrock:InvokeModelWithResponseStream\"\n        ]\n        Resource = [\n          \"arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-3-5-sonnet-20241022-v2:0\",\n          \"arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-3-opus-20240229-v1:0\",\n          \"arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-3-haiku-20240307-v1:0\"\n        ]\n      },\n      {\n        Sid    = \"KMSDecrypt\"\n        Effect = \"Allow\"\n        Action = [\n          \"kms:Decrypt\",\n          \"kms:GenerateDataKey\"\n        ]\n        Resource = aws_kms_key.bedrock.arn\n      },\n      {\n        Sid    = \"CloudWatchLogs\"\n        Effect = \"Allow\"\n        Action = [\n          \"logs:CreateLogGroup\",\n          \"logs:CreateLogStream\",\n          \"logs:PutLogEvents\"\n        ]\n        Resource = \"${aws_cloudwatch_log_group.claude_code.arn}:*\"\n      },\n      {\n        Sid    = \"SecretsManagerRead\"\n        Effect = \"Allow\"\n        Action = [\n          \"secretsmanager:GetSecretValue\"\n        ]\n        Resource = aws_secretsmanager_secret.api_keys.arn\n      }\n    ]\n  })\n}\n\n# CloudWatch Log Group for auditing\nresource \"aws_cloudwatch_log_group\" \"claude_code\" {\n  name              = \"/aws/claude-code/${var.environment}\"\n  retention_in_days = 90\n  kms_key_id        = aws_kms_key.bedrock.arn\n}\n\n# Secrets Manager for API credentials\nresource \"aws_secretsmanager_secret\" \"api_keys\" {\n  name        = \"claude-code/api-keys-${var.environment}\"\n  description = \"API keys and credentials for Claude Code\"\n  kms_key_id  = aws_kms_key.bedrock.id\n\n  rotation_rules {\n    automatically_after_days = 90\n  }\n}\n\n# CloudWatch Alarms for monitoring\nresource \"aws_cloudwatch_metric_alarm\" \"bedrock_throttling\" {\n  alarm_name          = \"claude-code-bedrock-throttling-${var.environment}\"\n  comparison_operator = \"GreaterThanThreshold\"\n  evaluation_periods  = \"2\"\n  metric_name         = \"ThrottledRequests\"\n  namespace           = \"AWS/Bedrock\"\n  period              = \"300\"\n  statistic           = \"Sum\"\n  threshold           = \"10\"\n  alarm_description   = \"Alert when Bedrock requests are throttled\"\n  alarm_actions       = [aws_sns_topic.alerts.arn]\n\n  dimensions = {\n    ModelId = \"anthropic.claude-3-5-sonnet-20241022-v2:0\"\n  }\n}\n\nresource \"aws_cloudwatch_metric_alarm\" \"bedrock_errors\" {\n  alarm_name          = \"claude-code-bedrock-errors-${var.environment}\"\n  comparison_operator = \"GreaterThanThreshold\"\n  evaluation_periods  = \"1\"\n  metric_name         = \"ModelInvocationErrors\"\n  namespace           = \"AWS/Bedrock\"\n  period              = \"300\"\n  statistic           = \"Sum\"\n  threshold           = \"5\"\n  alarm_description   = \"Alert when Bedrock invocations fail\"\n  alarm_actions       = [aws_sns_topic.alerts.arn]\n\n  dimensions = {\n    ModelId = \"anthropic.claude-3-5-sonnet-20241022-v2:0\"\n  }\n}\n\n# SNS Topic for alerts\nresource \"aws_sns_topic\" \"alerts\" {\n  name              = \"claude-code-bedrock-alerts-${var.environment}\"\n  kms_master_key_id = aws_kms_key.bedrock.id\n}\n\n# Outputs\noutput \"iam_role_arn\" {\n  description = \"ARN of IAM role for Claude Code\"\n  value       = aws_iam_role.claude_code.arn\n}\n\noutput \"vpc_endpoint_id\" {\n  description = \"ID of Bedrock VPC endpoint\"\n  value       = aws_vpc_endpoint.bedrock_runtime.id\n}\n\noutput \"kms_key_id\" {\n  description = \"ID of KMS key\"\n  value       = aws_kms_key.bedrock.id\n}\n\noutput \"log_group_name\" {\n  description = \"Name of CloudWatch log group\"\n  value       = aws_cloudwatch_log_group.claude_code.name\n}\n```\n\n# Parte 2: Claude Code Configuration\n\n## .claude/config-bedrock.json\n\n```json\n{\n  \"provider\": \"aws-bedrock\",\n  \"aws\": {\n    \"region\": \"us-east-1\",\n    \"roleArn\": \"${AWS_ROLE_ARN}\",\n    \"externalId\": \"${AWS_EXTERNAL_ID}\",\n    \"vpcEndpointUrl\": \"${BEDROCK_VPC_ENDPOINT}\",\n    \"kmsKeyId\": \"${KMS_KEY_ID}\"\n  },\n  \"models\": {\n    \"default\": \"anthropic.claude-3-5-sonnet-20241022-v2:0\",\n    \"fast\": \"anthropic.claude-3-haiku-20240307-v1:0\",\n    \"powerful\": \"anthropic.claude-3-opus-20240229-v1:0\"\n  },\n  \"maxTokens\": 4096,\n  \"temperature\": 0.7,\n  \"logging\": {\n    \"enabled\": true,\n    \"cloudwatch\": {\n      \"logGroupName\": \"/aws/claude-code/prod\",\n      \"streamName\": \"${HOSTNAME}-${USER}\"\n    },\n    \"auditTrail\": true,\n    \"includeRequests\": true,\n    \"includeResponses\": false,\n    \"maskSecrets\": true\n  },\n  \"rateLimit\": {\n    \"requestsPerMinute\": 60,\n    \"tokensPerMinute\": 200000\n  },\n  \"security\": {\n    \"encryptionAtRest\": true,\n    \"encryptionInTransit\": true,\n    \"requireMFA\": true,\n    \"allowedIPs\": [\"10.0.0.0/8\"],\n    \"blockPublicInternet\": true\n  },\n  \"compliance\": {\n    \"dataResidency\": \"us-east-1\",\n    \"retentionDays\": 90,\n    \"hipaaCompliant\": true,\n    \"soc2Compliant\": true\n  }\n}\n```\n\n# Parte 3: Setup Script\n\n## scripts/setup-bedrock.sh\n\n```bash\n#!/bin/bash\nset -euo pipefail\n\nENVIRONMENT=\"${1:-prod}\"\nREGION=\"${AWS_REGION:-us-east-1}\"\n\necho \"🚀 Setting up Claude Code with AWS Bedrock\"\necho \"Environment: $ENVIRONMENT\"\necho \"Region: $REGION\"\necho \"\"\n\n# 1. Deploy infrastructure\necho \"📦 Deploying Terraform infrastructure...\"\ncd terraform/\nterraform init\nterraform plan -var=\"environment=$ENVIRONMENT\" -out=tfplan\nterraform apply tfplan\n\n# Get outputs\nROLE_ARN=$(terraform output -raw iam_role_arn)\nKMS_KEY=$(terraform output -raw kms_key_id)\nVPC_ENDPOINT=$(terraform output -raw vpc_endpoint_id)\nLOG_GROUP=$(terraform output -raw log_group_name)\n\necho \"✅ Infrastructure deployed\"\necho \"  Role ARN: $ROLE_ARN\"\necho \"  KMS Key: $KMS_KEY\"\necho \"  VPC Endpoint: $VPC_ENDPOINT\"\necho \"\"\n\n# 2. Configure Claude Code\necho \"⚙️  Configuring Claude Code...\"\n\nexport AWS_ROLE_ARN=\"$ROLE_ARN\"\nexport KMS_KEY_ID=\"$KMS_KEY\"\nexport BEDROCK_VPC_ENDPOINT=\"https://vpce-${VPC_ENDPOINT}-bedrock-runtime.${REGION}.vpce.amazonaws.com\"\n\n# Substitute variables in config\nenvsubst < .claude/config-bedrock.json > ~/.config/claude-code/config.json\n\necho \"✅ Claude Code configured\"\necho \"\"\n\n# 3. Test connection\necho \"🧪 Testing Bedrock connection...\"\n\nclaude --test-connection || {\n  echo \"❌ Connection test failed\"\n  exit 1\n}\n\necho \"✅ Connection test passed\"\necho \"\"\n\n# 4. Setup monitoring\necho \"📊 Setting up monitoring dashboard...\"\n\naws cloudwatch put-dashboard \\\n  --dashboard-name \"ClaudeCode-Bedrock-${ENVIRONMENT}\" \\\n  --dashboard-body file://monitoring/dashboard.json\n\necho \"✅ Monitoring configured\"\necho \"\"\n\necho \"🎉 Setup complete!\"\necho \"\"\necho \"Next steps:\"\necho \"1. Test with: claude 'Explain this codebase'\"\necho \"2. View logs: aws logs tail $LOG_GROUP --follow\"\necho \"3. Monitor: https://console.aws.amazon.com/cloudwatch/home?region=$REGION#dashboards:\"\n```\n\n# Parte 4: Runbook Operacional\n\n## RUNBOOK.md\n\n```markdown\n# Claude Code + AWS Bedrock Runbook\n\n## Health Checks\n\n### Daily\n```bash\n# Check Bedrock availability\naws bedrock list-foundation-models --region us-east-1\n\n# Check VPC endpoint status\naws ec2 describe-vpc-endpoints --vpc-endpoint-ids $VPC_ENDPOINT_ID\n\n# Check recent errors\naws logs filter-log-events \\\n  --log-group-name /aws/claude-code/prod \\\n  --start-time $(date -u -d '1 hour ago' +%s)000 \\\n  --filter-pattern \"ERROR\"\n```\n\n### Weekly\n- Review CloudWatch alarms\n- Check IAM access analyzer findings\n- Review KMS key rotation status\n- Analyze cost and usage\n\n## Incident Response\n\n### Scenario 1: High Error Rate\n\n1. **Identify**:\n   ```bash\n   aws cloudwatch get-metric-statistics \\\n     --namespace AWS/Bedrock \\\n     --metric-name ModelInvocationErrors \\\n     --start-time $(date -u -d '1 hour ago' +%s) \\\n     --end-time $(date -u +%s) \\\n     --period 300 \\\n     --statistics Sum\n   ```\n\n2. **Diagnose**:\n   - Check CloudWatch logs for error messages\n   - Verify IAM permissions\n   - Check VPC endpoint connectivity\n   - Verify model availability\n\n3. **Remediate**:\n   - If throttling: implement exponential backoff\n   - If permissions: update IAM policy\n   - If network: check security groups/NACLs\n\n### Scenario 2: Security Incident\n\n1. **Isolate**:\n   ```bash\n   # Revoke IAM role permissions immediately\n   aws iam detach-role-policy \\\n     --role-name claude-code-bedrock-role-prod \\\n     --policy-arn $POLICY_ARN\n   ```\n\n2. **Investigate**:\n   ```bash\n   # Query CloudTrail for API calls\n   aws cloudtrail lookup-events \\\n     --lookup-attributes AttributeKey=ResourceName,AttributeValue=bedrock\n   ```\n\n3. **Recover**:\n   - Rotate all credentials via Secrets Manager\n   - Update security groups\n   - Restore access with new IAM role\n\n## Disaster Recovery\n\n### RTO: 1 hour | RPO: 5 minutes\n\n**Backup Strategy**:\n- Terraform state: S3 with versioning\n- Configs: Git repository\n- Logs: CloudWatch with 90-day retention\n\n**Recovery Steps**:\n1. Restore Terraform state from S3\n2. Re-run `terraform apply`\n3. Restore configs from Git\n4. Validate with test suite\n\n## Cost Optimization\n\n- Use Haiku model for simple tasks (90% cheaper)\n- Implement request caching\n- Set up budget alerts\n- Monitor token usage per user/team\n```",
+        "rubric": {
+          "terraform_infrastructure": 12,
+          "security_configuration": 8,
+          "claude_config": 6,
+          "monitoring_setup": 4,
+          "documentation": 5
+        }
+      }
+    },
+    {
+      "id": "m7-ex-2",
+      "moduleId": "7",
+      "lessonId": "7.4",
+      "type": "MULTIPLE_CHOICE",
+      "title": "Seguridad y Compliance",
+      "instructions": "Responde sobre seguridad y compliance en deployments empresariales de Claude Code.",
+      "points": 20,
+      "timeLimit": 600,
+      "config": {
+        "questions": [
+          {
+            "id": "q1",
+            "question": "¿Cuál es la mejor práctica para manejar API keys de Anthropic en entornos empresariales?",
+            "options": [
+              "Hardcodear en archivos de configuración committeados",
+              "Usar Secrets Manager/Vault con rotación automática y acceso auditado",
+              "Variables de entorno en archivos .env",
+              "Compartirlas por Slack en canal privado"
+            ],
+            "correctAnswer": 1,
+            "explanation": "En entornos enterprise, las API keys deben manejarse con: 1) Secrets management service (AWS Secrets Manager, HashiCorp Vault), 2) Rotación automática, 3) Acceso auditado (quién accedió cuándo), 4) Encriptación at rest, 5) Least privilege access."
+          },
+          {
+            "id": "q2",
+            "question": "Para cumplir con GDPR/HIPAA, ¿qué debe configurarse en Claude Code?",
+            "options": [
+              "Solo encriptación SSL",
+              "Data residency (región), encryption at rest/transit, audit logging, data retention policies",
+              "Nada especial, Claude Code es compliant por defecto",
+              "Solo usar VPN"
+            ],
+            "correctAnswer": 1,
+            "explanation": "Compliance GDPR/HIPAA requiere: 1) Data residency (mantener datos en región específica), 2) Encryption at rest y in transit, 3) Audit logging completo (quién accedió a qué datos), 4) Data retention policies (cuánto tiempo guardar logs), 5) Right to deletion, 6) Access controls estrictos."
+          },
+          {
+            "id": "q3",
+            "question": "¿Qué técnica previene que Claude Code accidentalmente exponga información sensible en logs?",
+            "options": [
+              "No usar logs",
+              "Secret masking/redaction automática en logs y outputs",
+              "Logs solo locales",
+              "Comprimir logs"
+            ],
+            "correctAnswer": 1,
+            "explanation": "Secret masking/redaction detecta y reemplaza automáticamente patrones sensibles (API keys, passwords, PII) en logs y outputs antes de escribirlos. Ejemplo: 'sk_live_abcd1234' → 'sk_live_****'. Se configura con regex patterns."
+          },
+          {
+            "id": "q4",
+            "question": "En un entorno enterprise multi-tenant, ¿cómo se debe aislar el uso de Claude Code entre equipos?",
+            "options": [
+              "No es necesario, todos comparten configuración",
+              "IAM roles separados, network isolation, separate billing accounts, audit trails por equipo",
+              "Solo usar diferentes API keys",
+              "Passwords diferentes"
+            ],
+            "correctAnswer": 1,
+            "explanation": "Aislamiento multi-tenant requiere: 1) IAM roles/service accounts separados por equipo, 2) Network isolation (VPCs diferentes), 3) Separate billing/cost tracking, 4) Audit trails independientes, 5) Resource quotas por equipo, 6) Data isolation (no cross-contamination)."
+          },
+          {
+            "id": "q5",
+            "question": "¿Qué debe incluirse en un security audit de Claude Code?",
+            "options": [
+              "Solo revisar passwords",
+              "IAM permissions audit, network security review, data flow analysis, compliance verification, incident response testing",
+              "Solo logs del último día",
+              "Nada, es responsabilidad de Anthropic"
+            ],
+            "correctAnswer": 1,
+            "explanation": "Security audit completo debe incluir: 1) IAM audit (principio de least privilege), 2) Network security (firewalls, VPCs, endpoints), 3) Data flow analysis (dónde van los datos), 4) Compliance verification (GDPR, SOC2, etc.), 5) Incident response testing (simulacros), 6) Vulnerability scanning, 7) Access logs review."
+          }
+        ]
+      }
+    },
+    {
+      "id": "m7-ex-3",
+      "moduleId": "7",
+      "lessonId": "7.6",
+      "type": "MATCHING_PAIRS",
+      "title": "Dev Containers y Aislamiento",
+      "instructions": "Empareja cada requisito de aislamiento con la técnica correcta.",
+      "points": 15,
+      "timeLimit": 420,
+      "config": {
+        "pairs": [
+          {
+            "left": "Desarrolladores necesitan entorno idéntico al de producción",
+            "right": "Dev Container con mismas dependencias, versiones y configuración que prod"
+          },
+          {
+            "left": "Prevenir que código malicioso acceda al filesystem del host",
+            "right": "Docker con volúmenes limitados y read-only filesystem donde sea posible"
+          },
+          {
+            "left": "Ejecutar Claude Code en entorno sin acceso a internet",
+            "right": "Air-gapped container con network mode 'none' y modelos cached localmente"
+          },
+          {
+            "left": "Limitar recursos de CPU/memoria que Claude Code puede consumir",
+            "right": "Docker resource constraints (--cpus, --memory) y cgroups"
+          },
+          {
+            "left": "Auditar todas las operaciones dentro del container",
+            "right": "Sidecar container con logging agent + volume compartido para logs"
+          },
+          {
+            "left": "Múltiples versiones de Claude Code para diferentes proyectos",
+            "right": "Dev Container matrix con diferentes imágenes por proyecto en devcontainer.json"
+          }
+        ],
+        "explanation": "Dev Containers proporcionan aislamiento, reproducibilidad y seguridad. Usan Docker para crear entornos consistentes con: dependencias versionadas, network isolation, resource limits, filesystem restrictions, y auditabilidad completa."
+      }
+    },
+    {
+      "id": "m7-ex-4",
+      "moduleId": "7",
+      "lessonId": "7.3",
+      "type": "SEQUENCE_ORDER",
+      "title": "Deployment a Google Vertex AI",
+      "instructions": "Ordena los pasos para un deployment completo de Claude Code con Google Vertex AI.",
+      "points": 20,
+      "timeLimit": 480,
+      "config": {
+        "items": [
+          { "id": "step1", "text": "Crear proyecto en Google Cloud Console y habilitar Vertex AI API" },
+          { "id": "step2", "text": "Configurar IAM service account con permisos Vertex AI User" },
+          { "id": "step3", "text": "Crear VPC y configurar Private Service Connect para Vertex AI" },
+          { "id": "step4", "text": "Generar y descargar service account key JSON" },
+          { "id": "step5", "text": "Almacenar key JSON en Secret Manager con acceso restringido" },
+          { "id": "step6", "text": "Configurar Claude Code con provider 'google-vertex-ai'" },
+          { "id": "step7", "text": "Especificar model ID (claude-3-5-sonnet@latest en Vertex)" },
+          { "id": "step8", "text": "Configurar Cloud Logging para auditoría" },
+          { "id": "step9", "text": "Test de conexión y validación de permisos" },
+          { "id": "step10", "text": "Configurar alertas en Cloud Monitoring para errores y cuotas" }
+        ],
+        "correctOrder": ["step1", "step2", "step3", "step4", "step5", "step6", "step7", "step8", "step9", "step10"],
+        "explanation": "El flujo correcto es: 1) Setup inicial de GCP, 2) IAM service account, 3) Network (VPC), 4-5) Credentials management, 6-7) Claude Code configuration, 8) Logging, 9) Testing, 10) Monitoring. Este orden asegura que la infraestructura esté lista antes de configurar la aplicación."
+      }
+    },
+    {
+      "id": "m8-ex-1",
+      "moduleId": "8",
+      "lessonId": "8.1",
+      "type": "CODE_CHALLENGE",
+      "title": "Dashboard de Monitorización",
+      "instructions": "Implementa un dashboard completo de monitorización para Claude Code con métricas de uso, costos y calidad.",
+      "points": 30,
+      "timeLimit": 1200,
+      "config": {
+        "challenge": "Crea un sistema de monitorización y analytics para Claude Code que incluya:\n\n**Métricas a Capturar:**\n1. **Uso:**\n   - Requests por día/usuario/equipo\n   - Tokens consumidos (input/output)\n   - Latencia promedio de respuestas\n   - Tasa de éxito/error\n\n2. **Costos:**\n   - Costo total por día/mes\n   - Costo por usuario/proyecto\n   - Breakdown por modelo (Sonnet/Opus/Haiku)\n   - Proyección de gasto mensual\n\n3. **Calidad:**\n   - Code quality metrics (complejidad, duplicación)\n   - Tests coverage generado\n   - Bugs encontrados vs introducidos\n   - Developer satisfaction score\n\n**Componentes a Implementar:**\n1. Collector script que captura métricas\n2. Backend API para almacenar y consultar\n3. Dashboard web con gráficos (React + Chart.js/Recharts)\n4. Alertas automáticas (Slack/email) cuando se exceden umbrales\n5. Reportes semanales automatizados\n\n**Stack Sugerido:**\n- Metrics: Prometheus/InfluxDB o simple PostgreSQL\n- Backend: Node.js/Python\n- Frontend: React + Recharts\n- Alerting: Webhook to Slack\n\n**Entrega:**\n1. Collector script completo\n2. Schema de base de datos\n3. API endpoints (al menos 5)\n4. Componentes React del dashboard\n5. Screenshot/mockup del dashboard",
+        "validation": {
+          "requiredElements": [
+            "metrics collection",
+            "database schema",
+            "API routes",
+            "dashboard components",
+            "cost calculation",
+            "alerting logic"
+          ]
+        },
+        "solution": "[Due to length, this would include:\n1. Collector script in Python/Node that hooks into Claude Code\n2. PostgreSQL schema with tables for requests, tokens, costs, quality_metrics\n3. Express API with endpoints like GET /api/metrics/usage, GET /api/metrics/costs, etc.\n4. React components: UsageChart.tsx, CostBreakdown.tsx, QualityMetrics.tsx\n5. Alert system using Slack webhooks\n6. Screenshot showing: line chart of daily requests, pie chart of costs by model, table of top users, alerts panel]\n\n# Example structure provided to show expectations:\n\n```typescript\n// Backend: src/metrics/collector.ts\nimport { PrismaClient } from '@prisma/client';\nimport { ClaudeCodeHook } from './hooks';\n\nconst prisma = new PrismaClient();\n\nexport class MetricsCollector {\n  async captureRequest(data: {\n    userId: string;\n    model: string;\n    inputTokens: number;\n    outputTokens: number;\n    latencyMs: number;\n    success: boolean;\n    cost: number;\n  }) {\n    await prisma.claudeRequest.create({ data });\n    \n    // Check alerts\n    await this.checkThresholds(data.userId);\n  }\n\n  async checkThresholds(userId: string) {\n    const today = new Date();\n    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);\n    \n    const monthlyCost = await prisma.claudeRequest.aggregate({\n      where: {\n        userId,\n        createdAt: { gte: monthStart }\n      },\n      _sum: { cost: true }\n    });\n\n    const user = await prisma.user.findUnique({ where: { id: userId } });\n    \n    if (monthlyCost._sum.cost! > user!.costBudget) {\n      await this.sendAlert({\n        type: 'budget_exceeded',\n        userId,\n        message: `User ${user!.name} exceeded monthly budget: $${monthlyCost._sum.cost} / $${user!.costBudget}`\n      });\n    }\n  }\n}\n\n// Frontend: src/components/Dashboard/UsageChart.tsx\nimport { LineChart, Line, XAxis, YAxis, Tooltip, Legend } from 'recharts';\nimport { useQuery } from '@tanstack/react-query';\n\nexport function UsageChart() {\n  const { data } = useQuery(['usage'], () =>\n    fetch('/api/metrics/usage?days=30').then(r => r.json())\n  );\n\n  return (\n    <div className=\"chart-container\">\n      <h2>Usage Trends (30 days)</h2>\n      <LineChart width={800} height={400} data={data}>\n        <XAxis dataKey=\"date\" />\n        <YAxis />\n        <Tooltip />\n        <Legend />\n        <Line type=\"monotone\" dataKey=\"requests\" stroke=\"#8884d8\" name=\"Requests\" />\n        <Line type=\"monotone\" dataKey=\"tokens\" stroke=\"#82ca9d\" name=\"Tokens (K)\" />\n      </LineChart>\n    </div>\n  );\n}\n```",
+        "rubric": {
+          "collector_implementation": 8,
+          "database_schema": 6,
+          "api_endpoints": 6,
+          "dashboard_ui": 6,
+          "alerting_system": 4
+        }
+      }
+    },
+    {
+      "id": "m8-ex-2",
+      "moduleId": "8",
+      "lessonId": "8.2",
+      "type": "MULTIPLE_CHOICE",
+      "title": "Optimización de Costos y Tokens",
+      "instructions": "Responde sobre estrategias de optimización de costos en uso de Claude Code.",
+      "points": 20,
+      "timeLimit": 600,
+      "config": {
+        "questions": [
+          {
+            "id": "q1",
+            "question": "¿Cuál es la estrategia MÁS efectiva para reducir costos de Claude Code sin sacrificar calidad?",
+            "options": [
+              "Usar siempre el modelo más barato (Haiku)",
+              "Model routing: Haiku para tareas simples, Sonnet para complejas, Opus solo cuando sea crítico",
+              "Limitar el número de requests por usuario",
+              "Reducir max_tokens a 1000"
+            ],
+            "correctAnswer": 1,
+            "explanation": "Model routing inteligente optimiza costos: Haiku ($0.25/MTok) para tareas simples (formatting, docs), Sonnet ($3/MTok) para la mayoría del trabajo, Opus ($15/MTok) solo para arquitectura crítica o debugging complejo. Esto puede reducir costos 60-80% vs usar siempre Sonnet."
+          },
+          {
+            "id": "q2",
+            "question": "¿Qué técnica reduce tokens sin perder contexto importante?",
+            "options": [
+              "Eliminar todos los comentarios del código",
+              "Prompt compression: resumir contexto, usar embeddings para recuperación selectiva",
+              "No pasar archivos a Claude",
+              "Usar mensajes más cortos"
+            ],
+            "correctAnswer": 1,
+            "explanation": "Prompt compression mantiene calidad mientras reduce tokens: 1) Resumir archivos grandes (pasar summary + solo secciones relevantes), 2) Usar embeddings para retrieval (solo incluir código relevante), 3) Incremental context (agregar contexto solo cuando necesario), 4) Deduplicate content."
+          },
+          {
+            "id": "q3",
+            "question": "¿Cómo se implementa caching efectivo en Claude Code para reducir tokens repetidos?",
+            "options": [
+              "Claude Code no soporta caching",
+              "Usar Anthropic's prompt caching para contexto repetido (documentación, schemas) - reduce hasta 90% tokens",
+              "Solo cachear en memoria local",
+              "Guardar todas las respuestas en Redis"
+            ],
+            "correctAnswer": 1,
+            "explanation": "Anthropic prompt caching permite marcar bloques de contexto (docs, schemas, código base) que se cachean server-side por 5min. Subsequent requests que usen mismo contexto solo pagan por nueva porción. Ejemplo: schema de 20K tokens cacheado se cobra solo 200 tokens en subsecuentes requests. Ahorro: hasta 90%."
+          },
+          {
+            "id": "q4",
+            "question": "Para un equipo de 50 developers usando Claude Code, ¿qué métrica es MÁS importante monitorear?",
+            "options": [
+              "Total de requests",
+              "Cost per developer per feature delivered (ROI)",
+              "Total tokens usados",
+              "Número de archivos modificados"
+            ],
+            "correctAnswer": 1,
+            "explanation": "El ROI (cost per feature) es la métrica clave. Ejemplo: Si Claude Code cuesta $5000/mes pero el equipo entrega 2x features (equivalente a contratar 25 devs más a $200K/año), el ROI es 50:1. Métricas a trackear: cost/developer/month, features delivered, time saved, bug reduction."
+          },
+          {
+            "id": "q5",
+            "question": "¿Qué estrategia previene 'token waste' por errores o retries innecesarios?",
+            "options": [
+              "Bloquear retries completamente",
+              "Exponential backoff, input validation antes de llamar Claude, circuit breaker pattern",
+              "Aumentar timeout",
+              "Usar solo requests síncronos"
+            ],
+            "correctAnswer": 1,
+            "explanation": "Prevenir token waste: 1) Input validation (verificar que request es válido antes de enviar), 2) Exponential backoff (evitar spam de retries), 3) Circuit breaker (pausar si servicio está fallando), 4) Request deduplication (no enviar duplicados), 5) Timeout optimization (fallar fast si no responde)."
+          }
+        ]
+      }
+    },
+    {
+      "id": "m8-ex-3",
+      "moduleId": "8",
+      "lessonId": "8.3",
+      "type": "DRAG_DROP",
+      "title": "Arquitectura de Proyecto Complejo",
+      "instructions": "Ordena las capas de una arquitectura enterprise correctamente para un proyecto con Claude Code.",
+      "points": 20,
+      "timeLimit": 480,
+      "config": {
+        "items": [
+          { "id": "layer1", "text": "Presentation Layer: CLI interface + Web dashboard" },
+          { "id": "layer2", "text": "API Gateway: Rate limiting + Authentication + Request routing" },
+          { "id": "layer3", "text": "Service Layer: Claude Code orchestration + Business logic" },
+          { "id": "layer4", "text": "MCP Layer: Custom servers (GitHub, Database, Monitoring)" },
+          { "id": "layer5", "text": "AI Provider Layer: AWS Bedrock/Vertex AI with fallback" },
+          { "id": "layer6", "text": "Data Layer: PostgreSQL + Redis cache + S3 storage" },
+          { "id": "layer7", "text": "Infrastructure Layer: Kubernetes + Service mesh + Observability" }
+        ],
+        "correctOrder": ["layer1", "layer2", "layer3", "layer4", "layer5", "layer6", "layer7"],
+        "explanation": "Arquitectura correcta de arriba hacia abajo: 1) Presentation (user interface), 2) API Gateway (entrada controlada), 3) Service Layer (lógica), 4) MCP (extensiones), 5) AI Provider (modelos), 6) Data (persistencia), 7) Infrastructure (deployment). Esta separación permite escalabilidad, testing y mantenibilidad."
+      }
+    },
+    {
+      "id": "m8-ex-4",
+      "moduleId": "8",
+      "lessonId": "8.5",
+      "type": "PROJECT",
+      "title": "Proyecto Final Integrador",
+      "instructions": "Construye una plataforma E-Learning completa usando Claude Code con todas las técnicas aprendidas en el curso.",
+      "points": 100,
+      "timeLimit": 0,
+      "config": {
+        "project": {
+          "title": "Plataforma E-Learning Completa con Claude Code",
+          "description": "Desarrolla una plataforma de aprendizaje online completa aplicando TODAS las técnicas del curso.",
+          "duration": "40-60 horas",
+          "requirements": {
+            "core_features": [
+              "Sistema de autenticación y autorización (estudiantes, profesores, admins)",
+              "Catálogo de cursos con módulos y lecciones",
+              "Sistema de ejercicios gamificados con múltiples tipos",
+              "Sistema de evaluación con tests y tracking de progreso",
+              "Panel de analytics para profesores",
+              "Sistema de certificados al completar cursos"
+            ],
+            "technical_requirements": [
+              "Backend: Node.js/Python con API REST o GraphQL",
+              "Frontend: React/Vue con TypeScript",
+              "Base de datos: PostgreSQL con Prisma ORM",
+              "Autenticación: JWT o OAuth2",
+              "Testing: Unit tests (80%+ coverage) + E2E tests",
+              "CI/CD: GitHub Actions o GitLab CI",
+              "Deployment: Docker + Kubernetes o serverless"
+            ],
+            "claude_code_integration": [
+              "Mínimo 5 slash commands personalizados",
+              "3+ subagents especializados (code-reviewer, test-generator, docs-generator)",
+              "2+ hooks de automatización",
+              "Output style custom para reportes",
+              "Integración MCP con al menos 2 servidores",
+              "Headless mode para CI/CD",
+              "Monitorización de uso de Claude Code"
+            ],
+            "advanced_features": [
+              "Checkpointing durante desarrollo largo",
+              "Plugin custom para funcionalidad específica",
+              "Memory management para contexto del proyecto",
+              "Plan mode para features complejas",
+              "Integration con AWS Bedrock o Vertex AI (bonus)"
+            ],
+            "documentation": [
+              "README completo con arquitectura",
+              "ADRs (Architecture Decision Records)",
+              "API documentation (Swagger/OpenAPI)",
+              "Deployment guide",
+              "Developer onboarding guide",
+              "Video demo (5-10 minutos)"
+            ]
+          },
+          "deliverables": [
+            {
+              "name": "Código Fuente Completo",
+              "description": "Repositorio Git con todo el código, organizado y comentado",
+              "points": 30
+            },
+            {
+              "name": "Tests y CI/CD",
+              "description": "Suite de tests completa + pipelines funcionando",
+              "points": 15
+            },
+            {
+              "name": "Configuración Claude Code",
+              "description": "Todos los comandos, subagents, hooks, y MCP servers implementados",
+              "points": 20
+            },
+            {
+              "name": "Deployment Funcional",
+              "description": "Aplicación deployada y accesible online",
+              "points": 15
+            },
+            {
+              "name": "Documentación",
+              "description": "README, ADRs, API docs, y guías completas",
+              "points": 10
+            },
+            {
+              "name": "Video Demo",
+              "description": "Demostración del proyecto funcionando y explicación técnica",
+              "points": 10
+            }
+          ],
+          "evaluation_criteria": [
+            {
+              "category": "Funcionalidad",
+              "weight": 30,
+              "items": [
+                "Todas las features core funcionan correctamente",
+                "UI/UX es intuitiva y responsive",
+                "No hay bugs críticos"
+              ]
+            },
+            {
+              "category": "Calidad de Código",
+              "weight": 25,
+              "items": [
+                "Código limpio y bien organizado",
+                "Patrones de diseño apropiados",
+                "Tests con buena cobertura",
+                "Type safety (TypeScript)"
+              ]
+            },
+            {
+              "category": "Uso de Claude Code",
+              "weight": 25,
+              "items": [
+                "Comandos, subagents y hooks bien diseñados",
+                "Integración MCP efectiva",
+                "CI/CD con Claude Code",
+                "Demostración de productividad 10x"
+              ]
+            },
+            {
+              "category": "Arquitectura y Escalabilidad",
+              "weight": 15,
+              "items": [
+                "Arquitectura bien pensada",
+                "Preparado para escalar",
+                "Separación de concerns",
+                "Seguridad implementada"
+              ]
+            },
+            {
+              "category": "Documentación",
+              "weight": 5,
+              "items": [
+                "README claro y completo",
+                "Código autodocumentado",
+                "Video demo profesional"
+              ]
+            }
+          ],
+          "bonus_points": [
+            "Despliegue en AWS/GCP con Bedrock/Vertex AI (+10 pts)",
+            "Implementación de features adicionales innovadoras (+5 pts)",
+            "Contribución open source (plugin o subagent) (+5 pts)",
+            "Performance optimization avanzado (+5 pts)"
+          ],
+          "timeline_suggestion": {
+            "week1": "Planificación, setup, arquitectura base, modelos de datos",
+            "week2": "Features core: auth, cursos, lecciones",
+            "week3": "Features avanzadas: ejercicios, evaluación, analytics",
+            "week4": "Testing, CI/CD, deployment, documentación, video",
+            "week5": "Refinamiento, bugs, optimización"
+          },
+          "resources": [
+            "Starter template: https://github.com/instituto-san-miguel/elearning-starter",
+            "Design system: Material-UI o Tailwind CSS",
+            "Database seeds con datos de ejemplo",
+            "Documentación del curso completa",
+            "Office hours semanales con instructor"
+          ]
+        }
+      }
+    }
+  ]
+}

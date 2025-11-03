@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
+import path from 'path';
 
 // Cargar variables de entorno
 dotenv.config();
@@ -22,6 +23,7 @@ import gameExercisesRoutes from './routes/gameExercises.routes';
 import moduleTestsRoutes from './routes/moduleTests.routes';
 import gradesRoutes from './routes/grades.routes';
 import enrollmentsRoutes from './routes/enrollments.routes';
+import pdfRoutes from './routes/pdfRoutes';
 
 // Importar middleware
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
@@ -39,8 +41,30 @@ const ALLOWED_ORIGINS = isDevelopment
   ? [process.env.FRONTEND_URL]
   : [];
 
-// Middleware de seguridad
-app.use(helmet());
+// Middleware de seguridad - Configuración personalizada para permitir videos
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        baseUri: ["'self'"],
+        fontSrc: ["'self'", "https:", "data:"],
+        formAction: ["'self'"],
+        frameAncestors: ["'self'"],
+        imgSrc: ["'self'", "data:", "https:"],
+        objectSrc: ["'none'"],
+        scriptSrc: ["'self'"],
+        scriptSrcAttr: ["'none'"],
+        styleSrc: ["'self'", "https:", "'unsafe-inline'"],
+        mediaSrc: ["'self'", "blob:"], // Permitir videos del mismo origen y blobs
+        upgradeInsecureRequests: [],
+      },
+    },
+    crossOriginEmbedderPolicy: false, // Desactivar para permitir carga de recursos cross-origin
+    crossOriginOpenerPolicy: false, // Desactivar COOP
+    crossOriginResourcePolicy: false, // Desactivar CORP - Permite cargar recursos desde mismo origen sin restricciones
+  })
+);
 
 // CORS - Configuración más permisiva para desarrollo
 app.use(
@@ -95,6 +119,22 @@ app.get('/health', (_req, res) => {
   });
 });
 
+// Servir archivos de vídeo con headers CORS
+app.use('/videos', (req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*'); // Permitir todos los orígenes
+  res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Range, Content-Type');
+  res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin'); // Permitir carga cross-origin
+  res.setHeader('Accept-Ranges', 'bytes'); // Habilitar streaming de video
+
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+
+  next();
+}, express.static(path.join(__dirname, '../../videos')));
+
 // Rutas de la API
 app.use('/api/auth', authRoutes);
 app.use('/api/courses', coursesRoutes);
@@ -108,6 +148,7 @@ app.use('/api/tickets', ticketsRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/enrollments', enrollmentsRoutes);
+app.use('/api/pdf', pdfRoutes);
 
 // Middleware de error 404
 app.use(notFoundHandler);
