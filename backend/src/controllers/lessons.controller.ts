@@ -4,6 +4,7 @@ import { AuthRequest, ApiResponse } from '../types';
 import { prisma } from '../utils/prisma';
 import { NotFoundError, AuthorizationError } from '../utils/errors';
 import { UserRole } from '@prisma/client';
+import * as gamificationService from '../services/gamificationService';
 
 /**
  * Obtener una lección por ID
@@ -25,6 +26,7 @@ export async function getLessonById(req: AuthRequest, res: Response, next: NextF
               select: {
                 id: true,
                 title: true,
+                slug: true,
                 instructorId: true,
               },
             },
@@ -40,6 +42,17 @@ export async function getLessonById(req: AuthRequest, res: Response, next: NextF
           },
         },
         exercise: true,
+        gameExercise: {
+          select: {
+            id: true,
+            title: true,
+            type: true,
+            instructions: true,
+            points: true,
+            timeLimit: true,
+            isActive: true,
+          },
+        },
       },
     });
 
@@ -132,6 +145,18 @@ export async function updateLessonProgress(req: AuthRequest, res: Response, next
       throw new AuthorizationError('Debes estar inscrito en el curso');
     }
 
+    // Verificar si la lección ya estaba completada
+    const existingProgress = await prisma.progress.findUnique({
+      where: {
+        userId_lessonId: {
+          userId: req.user.id,
+          lessonId: id,
+        },
+      },
+    });
+
+    const wasAlreadyCompleted = existingProgress?.completed || false;
+
     // Crear o actualizar progreso
     const progress = await prisma.progress.upsert({
       where: {
@@ -155,6 +180,17 @@ export async function updateLessonProgress(req: AuthRequest, res: Response, next
         completedAt: completed ? new Date() : undefined,
       },
     });
+
+    // Si se acaba de completar (no estaba completada antes), actualizar gamificación
+    if (completed && !wasAlreadyCompleted) {
+      try {
+        await gamificationService.completeLesson(req.user.id, id);
+        console.log(`✅ Gamification updated: User ${req.user.id} completed lesson ${id}`);
+      } catch (error) {
+        console.error('⚠️ Error updating gamification:', error);
+        // No lanzar error, la lección se marcó como completada correctamente
+      }
+    }
 
     // Actualizar progreso general del curso
     await updateCourseProgress(req.user.id, lesson.module.course.id);

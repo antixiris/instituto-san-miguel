@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { AuthRequest } from '../types';
 import { PrismaClient } from '@prisma/client';
+import * as gamificationService from '../services/gamificationService';
 
 const prisma = new PrismaClient();
 
@@ -556,6 +557,17 @@ export const submitModuleTest = async (req: AuthRequest, res: Response) => {
           submissionId: submission.id,
         },
       });
+    }
+
+    // Si pasó el test, actualizar gamificación
+    if (passed) {
+      try {
+        await gamificationService.passTest(userId, testId, totalScore);
+        console.log(`✅ Gamification updated: User ${userId} passed test ${testId} with score ${totalScore}`);
+      } catch (error) {
+        console.error('⚠️ Error updating gamification for test:', error);
+        // No lanzar error, el test se guardó correctamente
+      }
     }
 
     res.json({

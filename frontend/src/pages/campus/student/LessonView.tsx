@@ -24,11 +24,15 @@ interface Lesson {
       slug: string;
     };
   };
-  gameExercises: Array<{
+  gameExercise?: {
     id: string;
     title: string;
     type: string;
-  }>;
+    instructions: string;
+    points: number;
+    timeLimit?: number;
+    isActive: boolean;
+  } | null;
 }
 
 export default function LessonView() {
@@ -198,7 +202,7 @@ export default function LessonView() {
         </div>
 
         {/* Exercise Section */}
-        {lesson.gameExercises && lesson.gameExercises.length > 0 && (
+        {lesson.gameExercise && lesson.gameExercise.isActive && (
           <div className="bg-white dark:bg-neutral-900 rounded-lg shadow-lg p-8">
             {!showExercise ? (
               <div className="text-center">
@@ -229,7 +233,7 @@ export default function LessonView() {
             ) : (
               <div>
                 <GameExercise
-                  exerciseId={lesson.gameExercises[0].id}
+                  exerciseId={lesson.gameExercise.id}
                   lessonId={lesson.id}
                   onComplete={handleExerciseComplete}
                 />

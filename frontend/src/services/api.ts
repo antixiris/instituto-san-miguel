@@ -14,7 +14,7 @@ const api: AxiosInstance = axios.create({
 // Interceptor de request para añadir token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('accessToken');
+    const token = localStorage.getItem('token'); // ✅ FIXED: Changed from 'accessToken' to 'token'
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -31,7 +31,8 @@ api.interceptors.response.use(
   (error: AxiosError) => {
     if (error.response?.status === 401) {
       // Token expirado o inválido
-      localStorage.removeItem('accessToken');
+      console.log('🚨 API Interceptor: 401 detected, clearing localStorage');
+      localStorage.removeItem('token'); // ✅ FIXED: Changed from 'accessToken' to 'token'
       localStorage.removeItem('refreshToken');
       localStorage.removeItem('user');
       window.location.href = '/login';

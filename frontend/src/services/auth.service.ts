@@ -48,17 +48,26 @@ export const authService = {
 
   // Obtener usuario de localStorage
   getUser(): User | null {
+    console.log('📖 Reading user from localStorage...');
     const userStr = localStorage.getItem('user');
-    if (!userStr) return null;
+    console.log('📖 Raw user string:', userStr ? `${userStr.substring(0, 100)}...` : 'NULL');
+    if (!userStr) {
+      console.log('❌ No user in localStorage');
+      return null;
+    }
     try {
-      return JSON.parse(userStr);
-    } catch {
+      const user = JSON.parse(userStr);
+      console.log('✅ User parsed:', user.email);
+      return user;
+    } catch (e) {
+      console.log('❌ Error parsing user:', e);
       return null;
     }
   },
 
   // Logout
   logout(): void {
+    console.log('🗑️ CLEARING localStorage from:', new Error().stack);
     localStorage.removeItem('token');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
@@ -66,6 +75,8 @@ export const authService = {
 
   // Verificar si está autenticado
   isAuthenticated(): boolean {
-    return !!localStorage.getItem('token');
+    const token = localStorage.getItem('token');
+    console.log('🔑 Checking authentication, has token:', !!token);
+    return !!token;
   },
 };

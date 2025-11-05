@@ -68,12 +68,11 @@ enum SubmissionStatus {
 }
 
 enum AchievementType {
-  COURSE_COMPLETION
-  QUIZ_MASTER
-  PERFECT_SCORE
-  STREAK
-  EARLY_BIRD
-  HELPER
+  PROGRESS       // Achievements de progreso (completar lecciones, módulos, curso)
+  EXCELLENCE     // Achievements de excelencia (tests perfectos, proyectos)
+  CONSISTENCY    // Achievements de consistencia (rachas, disciplina)
+  SPECIALIZATION // Achievements de especialización (dominio de áreas)
+  HIDDEN         // Achievements ocultos (easter eggs)
 }
 
 enum TicketType {
@@ -120,6 +119,7 @@ model User {
   submissions             QuizSubmission[]
   exerciseSubmissions     ExerciseSubmission[]
   achievements            UserAchievement[]
+  userProgress            UserProgress? // Progreso XP y gamificación
   messages                Message[]
   messageRecipients       MessageRecipient[]
   announcements           Announcement[]
@@ -472,6 +472,30 @@ model UserAchievement {
   @@unique([userId, achievementId])
   @@index([userId])
   @@map("user_achievements")
+}
+
+// Progreso XP y Gamificación del Usuario
+model UserProgress {
+  id                  String   @id @default(cuid())
+  userId              String   @unique
+  totalXP             Int      @default(0) // XP total acumulado
+  currentLevel        Int      @default(1) // Nivel actual (1-7)
+  currentStreak       Int      @default(0) // Racha actual de días consecutivos
+  longestStreak       Int      @default(0) // Racha más larga alcanzada
+  lastActivityDate    DateTime @default(now()) // Última actividad para calcular rachas
+  totalLessonsCompleted Int    @default(0) // Contador de lecciones completadas
+  totalExercisesCompleted Int  @default(0) // Contador de ejercicios completados
+  totalTestsPassed    Int      @default(0) // Contador de tests aprobados
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  // Relaciones
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([totalXP])
+  @@index([currentLevel])
+  @@map("user_progress")
 }
 
 // Mensajes entre usuarios

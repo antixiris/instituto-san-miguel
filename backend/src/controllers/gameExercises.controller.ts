@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { AuthRequest } from '../types';
 import { PrismaClient, GameExerciseType } from '@prisma/client';
+import * as gamificationService from '../services/gamificationService';
 
 const prisma = new PrismaClient();
 
@@ -374,6 +375,18 @@ export const submitGameExercise = async (req: AuthRequest, res: Response) => {
       });
     }
 
+    // 🎮 INTEGRACIÓN CON GAMIFICACIÓN
+    // Si el ejercicio fue completado exitosamente (aprobado), otorgar XP
+    if (evaluationResult.passed) {
+      try {
+        await gamificationService.completeExercise(userId, exerciseId, evaluationResult.score);
+        console.log(`✅ Gamification updated: User ${userId} completed exercise ${exerciseId} with score ${evaluationResult.score}`);
+      } catch (error) {
+        console.error('⚠️ Error updating gamification for game exercise:', error);
+        // No lanzar error, el ejercicio se guardó correctamente
+      }
+    }
+
     res.json({
       success: true,
       data: {
@@ -421,6 +434,91 @@ export const getMySubmissions = async (req: AuthRequest, res: Response) => {
     res.status(500).json({
       success: false,
       error: 'Error al obtener los envíos',
+    });
+  }
+};
+
+// Obtener todos los ejercicios gamificados del estudiante con su progreso
+export const getMyExercises = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: 'Usuario no autenticado',
+      });
+    }
+
+    // Obtener todos los GameExercises con información de la lección y módulo
+    const exercises = await prisma.gameExercise.findMany({
+      where: {
+        isActive: true,
+        lesson: {
+          isPublished: true,
+        },
+      },
+      include: {
+        lesson: {
+          select: {
+            id: true,
+            title: true,
+            module: {
+              select: {
+                id: true,
+                title: true,
+                order: true,
+              },
+            },
+          },
+        },
+        submissions: {
+          where: {
+            userId,
+          },
+          orderBy: {
+            completedAt: 'desc',
+          },
+        },
+      },
+      orderBy: [
+        { lesson: { module: { order: 'asc' } } },
+        { lesson: { order: 'asc' } },
+      ],
+    });
+
+    // Calcular estadísticas para cada ejercicio
+    const exercisesWithProgress = exercises.map(exercise => {
+      const submissions = exercise.submissions;
+      const bestScore = submissions.length > 0
+        ? Math.max(...submissions.map(s => s.score))
+        : undefined;
+      const attempts = submissions.length;
+      const completed = submissions.some(s => s.passed);
+
+      return {
+        id: exercise.id,
+        title: exercise.title,
+        type: exercise.type,
+        points: exercise.points,
+        timeLimit: exercise.timeLimit,
+        isActive: exercise.isActive,
+        lesson: exercise.lesson,
+        bestScore,
+        attempts,
+        completed,
+      };
+    });
+
+    res.json({
+      success: true,
+      data: exercisesWithProgress,
+    });
+  } catch (error) {
+    console.error('Error fetching my exercises:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error al obtener los ejercicios',
     });
   }
 };

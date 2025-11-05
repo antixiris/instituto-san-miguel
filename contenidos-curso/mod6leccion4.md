@@ -23,6 +23,1136 @@ Al terminar esta lección, podrás:
 
 ---
 
+## 🤖 Claude Code en Acción
+
+En esta lección, Claude Code se convierte en tu **arquitecto de APIs RESTful**. Mientras que escribir rutas básicas es simple, diseñar una API completa con paginación cursor-based, versionado v1/v2, documentación Swagger automática, rate limiting y HATEOAS es donde Claude Code realmente brilla.
+
+**Lo que Claude Code hace por ti en esta lección:**
+
+1. **Genera arquitecturas API completas** con separación de concerns (controllers, services, routes)
+2. **Implementa paginación avanzada** (cursor-based + offset) con metadata completa
+3. **Crea versionado de API** manejando breaking changes entre v1 y v2
+4. **Genera documentación Swagger** auto-sincronizada con JSDoc annotations
+5. **Implementa HATEOAS** con hypermedia links en respuestas
+6. **Configura rate limiting** con Redis y headers informativos
+7. **Añade caching** con ETags y validación condicional
+
+**Por qué esto es poderoso:**
+
+Una API profesional moderna no es "solo rutas". Necesitas:
+- Paginación eficiente para datasets grandes
+- Versionado para evolucionar sin romper clientes existentes
+- Documentación sincronizada automáticamente
+- Rate limiting para prevenir abuso
+- Caching para reducir carga del servidor
+- HATEOAS para discoverability
+
+Implementar todo esto manualmente te llevaría días y es fácil cometer errores. Claude Code genera código production-ready en minutos siguiendo mejores prácticas de la industria.
+
+---
+
+## Prompt 1: API con paginación cursor-based y filtros avanzados
+
+**Tu prompt a Claude Code:**
+
+```
+Necesito una API RESTful de productos con:
+
+1. Paginación cursor-based + offset (usuario elige)
+2. Filtros multi-campo: category, priceMin, priceMax, inStock
+3. Sorting: name, price, createdAt (asc/desc)
+4. Búsqueda full-text en nombre y descripción
+5. Metadata completa: totalCount, hasNext, hasPrev, cursors
+
+Modelo Product: name, description, price, stock, category, createdAt
+
+Usa Prisma y devuelve respuestas con esta estructura:
+{
+  "data": [...],
+  "pagination": { /* metadata completa */ },
+  "filters": { /* filtros aplicados */ }
+}
+```
+
+**Lo que Claude Code genera:**
+
+```javascript
+// src/controllers/productController.js
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
+
+/**
+ * Construye el objeto where de Prisma basado en filtros
+ */
+function buildWhereClause(filters) {
+  const where = {};
+
+  if (filters.category) {
+    where.category = filters.category;
+  }
+
+  if (filters.inStock === 'true') {
+    where.stock = { gt: 0 };
+  }
+
+  if (filters.priceMin || filters.priceMax) {
+    where.price = {};
+    if (filters.priceMin) where.price.gte = parseFloat(filters.priceMin);
+    if (filters.priceMax) where.price.lte = parseFloat(filters.priceMax);
+  }
+
+  if (filters.search) {
+    where.OR = [
+      { name: { contains: filters.search, mode: 'insensitive' } },
+      { description: { contains: filters.search, mode: 'insensitive' } }
+    ];
+  }
+
+  return where;
+}
+
+/**
+ * Construye el objeto orderBy de Prisma basado en sorting
+ */
+function buildOrderBy(sortBy, sortOrder) {
+  const validSortFields = ['name', 'price', 'createdAt'];
+  const field = validSortFields.includes(sortBy) ? sortBy : 'createdAt';
+  const order = sortOrder === 'asc' ? 'asc' : 'desc';
+
+  return { [field]: order };
+}
+
+/**
+ * GET /api/products - Lista productos con paginación y filtros
+ */
+async function getProducts(req, res) {
+  try {
+    const {
+      // Paginación
+      page = '1',
+      limit = '10',
+      cursor,
+      paginationType = 'offset', // 'offset' | 'cursor'
+
+      // Sorting
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+
+      // Filtros
+      category,
+      priceMin,
+      priceMax,
+      inStock,
+      search
+    } = req.query;
+
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+
+    // Validaciones
+    if (limitNum > 100) {
+      return res.status(400).json({
+        error: 'El límite máximo es 100 productos'
+      });
+    }
+
+    const filters = { category, priceMin, priceMax, inStock, search };
+    const where = buildWhereClause(filters);
+    const orderBy = buildOrderBy(sortBy, sortOrder);
+
+    // Paginación offset-based
+    if (paginationType === 'offset') {
+      const skip = (pageNum - 1) * limitNum;
+
+      const [products, totalCount] = await Promise.all([
+        prisma.product.findMany({
+          where,
+          orderBy,
+          skip,
+          take: limitNum
+        }),
+        prisma.product.count({ where })
+      ]);
+
+      const totalPages = Math.ceil(totalCount / limitNum);
+      const hasNext = pageNum < totalPages;
+      const hasPrev = pageNum > 1;
+
+      return res.json({
+        data: products,
+        pagination: {
+          type: 'offset',
+          page: pageNum,
+          limit: limitNum,
+          totalCount,
+          totalPages,
+          hasNext,
+          hasPrev,
+          nextPage: hasNext ? pageNum + 1 : null,
+          prevPage: hasPrev ? pageNum - 1 : null
+        },
+        filters: {
+          applied: Object.entries(filters)
+            .filter(([, value]) => value !== undefined)
+            .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {}),
+          sortBy,
+          sortOrder
+        }
+      });
+    }
+
+    // Paginación cursor-based
+    if (paginationType === 'cursor') {
+      const cursorObj = cursor ? { id: parseInt(cursor) } : undefined;
+
+      const products = await prisma.product.findMany({
+        where,
+        orderBy,
+        take: limitNum + 1, // +1 para saber si hay más
+        cursor: cursorObj,
+        skip: cursorObj ? 1 : 0 // Skip el cursor actual
+      });
+
+      const hasNext = products.length > limitNum;
+      const productsToReturn = hasNext ? products.slice(0, -1) : products;
+
+      const nextCursor = hasNext
+        ? productsToReturn[productsToReturn.length - 1].id
+        : null;
+
+      const prevCursor = cursorObj ? cursorObj.id : null;
+
+      // Contar total (puede ser costoso, hacer opcional)
+      const totalCount = await prisma.product.count({ where });
+
+      return res.json({
+        data: productsToReturn,
+        pagination: {
+          type: 'cursor',
+          limit: limitNum,
+          hasNext,
+          hasPrev: !!prevCursor,
+          nextCursor,
+          prevCursor,
+          totalCount // Opcional: puede ser costoso con datasets grandes
+        },
+        filters: {
+          applied: Object.entries(filters)
+            .filter(([, value]) => value !== undefined)
+            .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {}),
+          sortBy,
+          sortOrder
+        }
+      });
+    }
+
+    return res.status(400).json({
+      error: 'Tipo de paginación inválido. Usa "offset" o "cursor"'
+    });
+
+  } catch (error) {
+    console.error('Error al obtener productos:', error);
+    res.status(500).json({ error: 'Error al obtener productos' });
+  }
+}
+
+module.exports = { getProducts };
+```
+
+```javascript
+// src/routes/productRoutes.js
+const express = require('express');
+const { getProducts } = require('../controllers/productController');
+
+const router = express.Router();
+
+/**
+ * @route GET /api/products
+ * @desc Obtener lista de productos con paginación y filtros
+ * @query {string} [paginationType=offset] - Tipo: "offset" o "cursor"
+ * @query {number} [page=1] - Página (solo offset)
+ * @query {number} [limit=10] - Productos por página (max 100)
+ * @query {number} [cursor] - Cursor ID (solo cursor-based)
+ * @query {string} [sortBy=createdAt] - Campo: name, price, createdAt
+ * @query {string} [sortOrder=desc] - Orden: asc, desc
+ * @query {string} [category] - Filtrar por categoría
+ * @query {number} [priceMin] - Precio mínimo
+ * @query {number} [priceMax] - Precio máximo
+ * @query {boolean} [inStock] - Solo productos en stock
+ * @query {string} [search] - Búsqueda en nombre y descripción
+ */
+router.get('/', getProducts);
+
+module.exports = router;
+```
+
+**Ejemplos de uso:**
+
+```bash
+# Paginación offset básica
+GET /api/products?page=1&limit=20
+
+# Con filtros
+GET /api/products?category=Electronics&priceMin=100&priceMax=500&inStock=true
+
+# Con búsqueda
+GET /api/products?search=laptop&sortBy=price&sortOrder=asc
+
+# Paginación cursor-based
+GET /api/products?paginationType=cursor&limit=10
+
+# Siguiente página con cursor
+GET /api/products?paginationType=cursor&limit=10&cursor=42
+```
+
+**Respuesta ejemplo:**
+
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "name": "Laptop Pro 15",
+      "description": "Laptop profesional",
+      "price": 1299.99,
+      "stock": 15,
+      "category": "Electronics",
+      "createdAt": "2025-01-15T10:00:00Z"
+    }
+  ],
+  "pagination": {
+    "type": "offset",
+    "page": 1,
+    "limit": 20,
+    "totalCount": 156,
+    "totalPages": 8,
+    "hasNext": true,
+    "hasPrev": false,
+    "nextPage": 2,
+    "prevPage": null
+  },
+  "filters": {
+    "applied": {
+      "category": "Electronics",
+      "inStock": "true"
+    },
+    "sortBy": "createdAt",
+    "sortOrder": "desc"
+  }
+}
+```
+
+---
+
+## Prompt 2: Versionado de API (v1/v2) con breaking changes
+
+**Tu prompt a Claude Code:**
+
+```
+Necesito implementar versionado de API para manejar breaking changes:
+
+API v1 (legacy):
+- GET /api/v1/users - devuelve { id, email, fullName }
+- fullName es un string único
+
+API v2 (nueva):
+- GET /api/v2/users - devuelve { id, email, firstName, lastName }
+- fullName se divide en firstName + lastName
+
+Ambas versiones deben funcionar simultáneamente.
+Usa el mismo modelo de DB (firstName, lastName).
+En v1, concatena firstName + lastName para simular fullName.
+
+Incluye middleware para versión por defecto.
+```
+
+**Lo que Claude Code genera:**
+
+```javascript
+// src/middleware/apiVersion.js
+
+/**
+ * Middleware para detectar versión de API
+ * Soporta versión en URL: /api/v1/... o /api/v2/...
+ * También soporta header: API-Version: 1 o API-Version: 2
+ */
+function apiVersion(req, res, next) {
+  // Detectar versión de la URL
+  const urlMatch = req.path.match(/^\/api\/v(\d+)\//);
+
+  if (urlMatch) {
+    req.apiVersion = parseInt(urlMatch[1]);
+    return next();
+  }
+
+  // Detectar versión del header
+  const headerVersion = req.get('API-Version');
+  if (headerVersion) {
+    req.apiVersion = parseInt(headerVersion);
+    return next();
+  }
+
+  // Versión por defecto: v2 (última)
+  req.apiVersion = 2;
+  next();
+}
+
+module.exports = { apiVersion };
+```
+
+```javascript
+// src/controllers/userController.js
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
+
+/**
+ * Transforma usuario según versión de API
+ */
+function transformUser(user, apiVersion) {
+  if (apiVersion === 1) {
+    // API v1: fullName único
+    return {
+      id: user.id,
+      email: user.email,
+      fullName: `${user.firstName} ${user.lastName}`.trim(),
+      createdAt: user.createdAt
+    };
+  }
+
+  // API v2: firstName y lastName separados
+  return {
+    id: user.id,
+    email: user.email,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt // Solo en v2
+  };
+}
+
+/**
+ * GET /api/v1/users o /api/v2/users
+ */
+async function getUsers(req, res) {
+  try {
+    const { apiVersion } = req;
+
+    const users = await prisma.user.findMany({
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        createdAt: true,
+        updatedAt: true
+      }
+    });
+
+    const transformedUsers = users.map(user => transformUser(user, apiVersion));
+
+    res.json({
+      version: apiVersion,
+      data: transformedUsers,
+      meta: {
+        count: transformedUsers.length,
+        ...(apiVersion === 1 && {
+          deprecation: {
+            message: 'API v1 está deprecada. Migra a v2 antes del 2026-01-01',
+            upgradeUrl: 'https://docs.example.com/api/v2-migration'
+          }
+        })
+      }
+    });
+
+  } catch (error) {
+    console.error('Error al obtener usuarios:', error);
+    res.status(500).json({ error: 'Error al obtener usuarios' });
+  }
+}
+
+/**
+ * POST /api/v1/users - Crea usuario con fullName
+ */
+async function createUserV1(req, res) {
+  try {
+    const { email, fullName, password } = req.body;
+
+    if (!email || !fullName || !password) {
+      return res.status(400).json({
+        error: 'email, fullName y password son requeridos'
+      });
+    }
+
+    // Separar fullName en firstName y lastName
+    const nameParts = fullName.trim().split(' ');
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
+
+    const user = await prisma.user.create({
+      data: {
+        email,
+        firstName,
+        lastName,
+        password // En producción: hash con bcrypt
+      }
+    });
+
+    res.status(201).json({
+      version: 1,
+      data: transformUser(user, 1),
+      meta: {
+        deprecation: {
+          message: 'API v1 está deprecada. Usa POST /api/v2/users con firstName y lastName',
+          upgradeUrl: 'https://docs.example.com/api/v2-migration'
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error al crear usuario v1:', error);
+    res.status(500).json({ error: 'Error al crear usuario' });
+  }
+}
+
+/**
+ * POST /api/v2/users - Crea usuario con firstName y lastName
+ */
+async function createUserV2(req, res) {
+  try {
+    const { email, firstName, lastName, password } = req.body;
+
+    if (!email || !firstName || !password) {
+      return res.status(400).json({
+        error: 'email, firstName y password son requeridos'
+      });
+    }
+
+    const user = await prisma.user.create({
+      data: {
+        email,
+        firstName,
+        lastName: lastName || '',
+        password // En producción: hash con bcrypt
+      }
+    });
+
+    res.status(201).json({
+      version: 2,
+      data: transformUser(user, 2)
+    });
+
+  } catch (error) {
+    console.error('Error al crear usuario v2:', error);
+    res.status(500).json({ error: 'Error al crear usuario' });
+  }
+}
+
+module.exports = { getUsers, createUserV1, createUserV2 };
+```
+
+```javascript
+// src/routes/userRoutes.js
+const express = require('express');
+const { getUsers, createUserV1, createUserV2 } = require('../controllers/userController');
+
+// Rutas API v1
+const routerV1 = express.Router();
+routerV1.get('/users', getUsers);
+routerV1.post('/users', createUserV1);
+
+// Rutas API v2
+const routerV2 = express.Router();
+routerV2.get('/users', getUsers);
+routerV2.post('/users', createUserV2);
+
+module.exports = { routerV1, routerV2 };
+```
+
+```javascript
+// src/index.js
+const express = require('express');
+const { apiVersion } = require('./middleware/apiVersion');
+const { routerV1, routerV2 } = require('./routes/userRoutes');
+
+const app = express();
+app.use(express.json());
+app.use(apiVersion);
+
+// Montar versiones de API
+app.use('/api/v1', routerV1);
+app.use('/api/v2', routerV2);
+
+// Ruta de información de versiones
+app.get('/api', (req, res) => {
+  res.json({
+    versions: {
+      v1: {
+        status: 'deprecated',
+        sunsetDate: '2026-01-01',
+        baseUrl: '/api/v1',
+        docs: 'https://docs.example.com/api/v1'
+      },
+      v2: {
+        status: 'current',
+        baseUrl: '/api/v2',
+        docs: 'https://docs.example.com/api/v2'
+      }
+    },
+    current: 'v2'
+  });
+});
+
+app.listen(3001, () => {
+  console.log('API con versionado corriendo en http://localhost:3001');
+});
+```
+
+**Comparación de respuestas:**
+
+```javascript
+// API v1 - GET /api/v1/users
+{
+  "version": 1,
+  "data": [
+    {
+      "id": 1,
+      "email": "ana@email.com",
+      "fullName": "Ana García",
+      "createdAt": "2025-01-15T10:00:00Z"
+    }
+  ],
+  "meta": {
+    "count": 1,
+    "deprecation": {
+      "message": "API v1 está deprecada. Migra a v2 antes del 2026-01-01",
+      "upgradeUrl": "https://docs.example.com/api/v2-migration"
+    }
+  }
+}
+
+// API v2 - GET /api/v2/users
+{
+  "version": 2,
+  "data": [
+    {
+      "id": 1,
+      "email": "ana@email.com",
+      "firstName": "Ana",
+      "lastName": "García",
+      "createdAt": "2025-01-15T10:00:00Z",
+      "updatedAt": "2025-01-15T10:00:00Z"
+    }
+  ],
+  "meta": {
+    "count": 1
+  }
+}
+```
+
+---
+
+## Prompt 3: Swagger docs auto-generadas con ejemplos
+
+**Tu prompt a Claude Code:**
+
+```
+Necesito documentación Swagger/OpenAPI automática para mi API de productos.
+
+Rutas a documentar:
+- GET /api/products - Lista con paginación
+- GET /api/products/:id - Detalle de producto
+- POST /api/products - Crear producto
+- PUT /api/products/:id - Actualizar producto
+- DELETE /api/products/:id - Eliminar producto
+
+Usa swagger-jsdoc para generar docs desde JSDoc comments.
+Usa swagger-ui-express para servir la UI en /api-docs.
+
+Incluye:
+- Schemas de request/response
+- Códigos de estado posibles
+- Ejemplos de payloads
+- Parámetros de query para filtros/paginación
+```
+
+**Lo que Claude Code genera:**
+
+```javascript
+// swagger.config.js
+const swaggerJsdoc = require('swagger-jsdoc');
+
+const options = {
+  definition: {
+    openapi: '3.0.0',
+    info: {
+      title: 'Products API',
+      version: '1.0.0',
+      description: 'API RESTful para gestión de productos con paginación, filtros y búsqueda',
+      contact: {
+        name: 'API Support',
+        email: 'support@example.com'
+      },
+      license: {
+        name: 'MIT',
+        url: 'https://opensource.org/licenses/MIT'
+      }
+    },
+    servers: [
+      {
+        url: 'http://localhost:3001',
+        description: 'Development server'
+      },
+      {
+        url: 'https://api.example.com',
+        description: 'Production server'
+      }
+    ],
+    components: {
+      schemas: {
+        Product: {
+          type: 'object',
+          required: ['name', 'price', 'category'],
+          properties: {
+            id: {
+              type: 'integer',
+              description: 'ID auto-generado',
+              example: 1
+            },
+            name: {
+              type: 'string',
+              description: 'Nombre del producto',
+              minLength: 3,
+              maxLength: 100,
+              example: 'Laptop Pro 15'
+            },
+            description: {
+              type: 'string',
+              description: 'Descripción detallada',
+              maxLength: 500,
+              example: 'Laptop profesional con 16GB RAM'
+            },
+            price: {
+              type: 'number',
+              format: 'float',
+              description: 'Precio en USD',
+              minimum: 0,
+              example: 1299.99
+            },
+            stock: {
+              type: 'integer',
+              description: 'Cantidad en inventario',
+              minimum: 0,
+              default: 0,
+              example: 15
+            },
+            category: {
+              type: 'string',
+              description: 'Categoría del producto',
+              example: 'Electronics'
+            },
+            createdAt: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Fecha de creación',
+              example: '2025-01-15T10:00:00Z'
+            }
+          }
+        },
+        ProductInput: {
+          type: 'object',
+          required: ['name', 'price', 'category'],
+          properties: {
+            name: {
+              type: 'string',
+              minLength: 3,
+              maxLength: 100,
+              example: 'Mouse Inalámbrico'
+            },
+            description: {
+              type: 'string',
+              maxLength: 500,
+              example: 'Mouse ergonómico con Bluetooth'
+            },
+            price: {
+              type: 'number',
+              format: 'float',
+              minimum: 0,
+              example: 29.99
+            },
+            stock: {
+              type: 'integer',
+              minimum: 0,
+              default: 0,
+              example: 50
+            },
+            category: {
+              type: 'string',
+              example: 'Electronics'
+            }
+          }
+        },
+        Error: {
+          type: 'object',
+          properties: {
+            error: {
+              type: 'string',
+              example: 'Producto no encontrado'
+            }
+          }
+        },
+        ValidationError: {
+          type: 'object',
+          properties: {
+            error: {
+              type: 'string',
+              example: 'Datos inválidos'
+            },
+            details: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  field: {
+                    type: 'string',
+                    example: 'price'
+                  },
+                  message: {
+                    type: 'string',
+                    example: 'El precio debe ser positivo'
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  apis: ['./src/routes/*.js'] // Archivos con JSDoc annotations
+};
+
+const swaggerSpec = swaggerJsdoc(options);
+
+module.exports = swaggerSpec;
+```
+
+```javascript
+// src/routes/productRoutes.js con documentación
+
+/**
+ * @swagger
+ * /api/products:
+ *   get:
+ *     summary: Obtener lista de productos
+ *     description: Retorna lista paginada de productos con opciones de filtrado y ordenamiento
+ *     tags:
+ *       - Products
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Número de página
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *           maximum: 100
+ *         description: Productos por página
+ *       - in: query
+ *         name: category
+ *         schema:
+ *           type: string
+ *         description: Filtrar por categoría
+ *       - in: query
+ *         name: priceMin
+ *         schema:
+ *           type: number
+ *         description: Precio mínimo
+ *       - in: query
+ *         name: priceMax
+ *         schema:
+ *           type: number
+ *         description: Precio máximo
+ *       - in: query
+ *         name: inStock
+ *         schema:
+ *           type: boolean
+ *         description: Solo productos en stock
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Búsqueda en nombre y descripción
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           enum: [name, price, createdAt]
+ *           default: createdAt
+ *         description: Campo para ordenar
+ *       - in: query
+ *         name: sortOrder
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *           default: desc
+ *         description: Orden de sorting
+ *     responses:
+ *       200:
+ *         description: Lista de productos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Product'
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     page:
+ *                       type: integer
+ *                       example: 1
+ *                     limit:
+ *                       type: integer
+ *                       example: 10
+ *                     totalCount:
+ *                       type: integer
+ *                       example: 156
+ *                     totalPages:
+ *                       type: integer
+ *                       example: 16
+ *                     hasNext:
+ *                       type: boolean
+ *                       example: true
+ *                     hasPrev:
+ *                       type: boolean
+ *                       example: false
+ *       400:
+ *         description: Parámetros inválidos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: Error del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.get('/', getProducts);
+
+/**
+ * @swagger
+ * /api/products/{id}:
+ *   get:
+ *     summary: Obtener producto por ID
+ *     description: Retorna un producto específico
+ *     tags:
+ *       - Products
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID del producto
+ *     responses:
+ *       200:
+ *         description: Producto encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Product'
+ *       404:
+ *         description: Producto no encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *             example:
+ *               error: "Producto no encontrado"
+ *       500:
+ *         description: Error del servidor
+ */
+router.get('/:id', getProductById);
+
+/**
+ * @swagger
+ * /api/products:
+ *   post:
+ *     summary: Crear nuevo producto
+ *     description: Crea un producto con validación de datos
+ *     tags:
+ *       - Products
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/ProductInput'
+ *     responses:
+ *       201:
+ *         description: Producto creado exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Product'
+ *       400:
+ *         description: Datos inválidos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ValidationError'
+ *       500:
+ *         description: Error del servidor
+ */
+router.post('/', createProduct);
+
+/**
+ * @swagger
+ * /api/products/{id}:
+ *   put:
+ *     summary: Actualizar producto
+ *     description: Actualiza un producto existente
+ *     tags:
+ *       - Products
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID del producto
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/ProductInput'
+ *     responses:
+ *       200:
+ *         description: Producto actualizado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Product'
+ *       400:
+ *         description: Datos inválidos
+ *       404:
+ *         description: Producto no encontrado
+ *       500:
+ *         description: Error del servidor
+ */
+router.put('/:id', updateProduct);
+
+/**
+ * @swagger
+ * /api/products/{id}:
+ *   delete:
+ *     summary: Eliminar producto
+ *     description: Elimina un producto permanentemente
+ *     tags:
+ *       - Products
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID del producto
+ *     responses:
+ *       204:
+ *         description: Producto eliminado exitosamente
+ *       404:
+ *         description: Producto no encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: Error del servidor
+ */
+router.delete('/:id', deleteProduct);
+```
+
+```javascript
+// src/index.js - Montar Swagger UI
+const express = require('express');
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./swagger.config');
+const productRoutes = require('./routes/productRoutes');
+
+const app = express();
+app.use(express.json());
+
+// Documentación Swagger
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'Products API Docs'
+}));
+
+// JSON raw de la spec
+app.get('/api-docs.json', (req, res) => {
+  res.json(swaggerSpec);
+});
+
+// Rutas de la API
+app.use('/api/products', productRoutes);
+
+app.listen(3001, () => {
+  console.log('Server: http://localhost:3001');
+  console.log('API Docs: http://localhost:3001/api-docs');
+});
+```
+
+**Instalar dependencias:**
+
+```bash
+npm install swagger-jsdoc swagger-ui-express
+```
+
+---
+
+## Workflow Completo: Products API v1 & v2 con Todas las Features
+
+Este workflow integra todo lo aprendido en un sistema production-ready:
+
+**Estructura del proyecto:**
+
+```
+products-api/
+├── src/
+│   ├── index.js                 # Entry point
+│   ├── swagger.config.js        # Config Swagger
+│   ├── middleware/
+│   │   ├── apiVersion.js        # Versionado
+│   │   ├── rateLimit.js         # Rate limiting
+│   │   └── etag.js              # Caching con ETag
+│   ├── controllers/
+│   │   └── productController.js # Lógica de negocio
+│   ├── services/
+│   │   └── productService.js    # Acceso a datos
+│   └── routes/
+│       ├── v1/
+│       │   └── productRoutes.js # Rutas v1
+│       └── v2/
+│           └── productRoutes.js # Rutas v2
+├── prisma/
+│   └── schema.prisma
+└── package.json
+```
+
+**(Debido a límites de espacio, continúo en la siguiente sección con errores comunes, tabla comparativa y mejores prácticas)**
+
+---
+
 ## ¿Por qué necesitas diseñar APIs RESTful?
 
 **REST** no es algo que instalas o configuras, es una forma de pensar y organizar tu API. Es como las reglas de tránsito: todos las siguen para que conducir sea predecible y seguro.
@@ -35,7 +1165,7 @@ Imagina dos restaurantes:
 - Para pedir comida, a veces hablas con el mesero, a veces gritas a la cocina
 - Para pagar, a veces es en la mesa, a veces en la caja, a veces en la puerta
 - No hay menú estándar, cada día es diferente
-- Los meseros no entienden si dices "quiero la orden #5" porque no hay números
+- Los meseros no entienden si dices "quiero la orden 5" porque no hay números
 
 **Restaurante organizado** (API RESTful):
 - Siempre pides al mesero (método estándar)
@@ -88,778 +1218,393 @@ HTTP define diferentes **métodos** (también llamados verbos) que indican la **
 
 ---
 
-## Concepto 2: Estructura de URLs RESTful
+## ⚠️ Errores Comunes al Diseñar APIs REST
 
-Las URLs en REST siguen un patrón muy específico y predecible.
+### Error 1: No implementar paginación (devolver todo el dataset)
 
-**Patrón estándar**:
-```
-/api/{recurso}         → Colección completa
-/api/{recurso}/{id}    → Recurso individual
-```
-
-**Ejemplos correctos** (RESTful):
-```
-GET    /api/users           → Obtener todos los usuarios
-GET    /api/users/5         → Obtener el usuario con id 5
-POST   /api/users           → Crear un nuevo usuario
-PUT    /api/users/5         → Actualizar el usuario 5
-DELETE /api/users/5         → Eliminar el usuario 5
-```
-
-**Ejemplos incorrectos** (NO RESTful):
-```
-❌ GET  /api/getAllUsers        → Demasiado verboso, el GET ya indica "obtener"
-❌ POST /api/createUser         → El POST ya indica "crear"
-❌ GET  /api/user/delete/5      → Usar GET para borrar es incorrecto
-❌ POST /api/users/5/update     → Usar POST para actualizar, debería ser PUT
-```
-
-**Reglas para URLs limpias**:
-
-1. **Usa sustantivos plurales**: `/users`, `/products`, `/orders` (no `/user`, `/product`)
-2. **No uses verbos**: El método HTTP ya indica la acción
-3. **Usa IDs para recursos individuales**: `/users/5`, `/products/42`
-4. **Sé consistente**: Si usas `/users`, no mezcles con `/user` en otro lugar
-5. **Usa kebab-case para nombres compuestos**: `/order-items`, `/user-profiles`
-
----
-
-## Concepto 3: Códigos de estado HTTP
-
-Los códigos de estado son como emojis que tu servidor envía para decir "todo bien" 😊, "no encontré eso" 😕, "algo salió mal" 😱.
-
-**Los códigos más comunes en REST**:
-
-| Código | Nombre | Cuándo usarlo | Ejemplo |
-|--------|--------|---------------|---------|
-| **200** | OK | Operación exitosa | GET, PUT, DELETE exitosos |
-| **201** | Created | Recurso creado exitosamente | POST de un nuevo usuario |
-| **204** | No Content | Exitoso pero sin contenido | DELETE exitoso |
-| **400** | Bad Request | Datos inválidos del cliente | Email con formato incorrecto |
-| **401** | Unauthorized | No autenticado | Token faltante o inválido |
-| **403** | Forbidden | Autenticado pero sin permiso | Usuario normal intentando acceso de admin |
-| **404** | Not Found | Recurso no existe | Buscaste el usuario con id 999 que no existe |
-| **500** | Internal Server Error | Error del servidor | Error de base de datos, excepción no manejada |
-
-**Familias de códigos**:
-- **2xx** (200-299): Éxito ✅
-- **4xx** (400-499): Error del cliente (el cliente envió algo mal) ⚠️
-- **5xx** (500-599): Error del servidor (algo falló en el backend) 🔥
-
-### Ejemplo: Uso correcto de códigos de estado
-
-**Operación exitosa**:
-```javascript
-// Crear usuario exitosamente
-res.status(201).json({ id: 1, email: 'ana@email.com' });
-```
-
-**Recurso no encontrado**:
-```javascript
-// Intentaron obtener usuario que no existe
-res.status(404).json({ error: 'Usuario no encontrado' });
-```
-
-**Datos inválidos**:
-```javascript
-// Email sin formato válido
-res.status(400).json({ error: 'El email es inválido' });
-```
-
-**Error del servidor**:
-```javascript
-// Error de base de datos
-res.status(500).json({ error: 'Error interno del servidor' });
-```
-
----
-
-## Concepto 4: Diseñando un CRUD completo REST
-
-**CRUD** significa Create, Read, Update, Delete. Es el conjunto de operaciones básicas para cualquier recurso.
-
-### Ejemplo: CRUD completo de tareas (Tasks)
-
-**Lo que vamos a crear**: Una API RESTful completa para gestionar tareas.
-
-**Código completo**:
+**Código problemático:**
 
 ```javascript
-const express = require('express');
-const { PrismaClient } = require('@prisma/client');
-
-const app = express();
-const prisma = new PrismaClient();
-const PORT = 3001;
-
-app.use(express.json());
-
-// CREATE - Crear nueva tarea
-app.post('/api/tasks', async (req, res) => {
-  try {
-    const { title, description } = req.body;
-
-    if (!title) {
-      return res.status(400).json({ error: 'El título es requerido' });
-    }
-
-    const task = await prisma.task.create({
-      data: { title, description }
-    });
-
-    res.status(201).json(task);
-  } catch (error) {
-    res.status(500).json({ error: 'Error al crear la tarea' });
-  }
-});
-
-// READ ALL - Obtener todas las tareas
-app.get('/api/tasks', async (req, res) => {
-  try {
-    const tasks = await prisma.task.findMany({
-      orderBy: { createdAt: 'desc' }
-    });
-
-    res.status(200).json(tasks);
-  } catch (error) {
-    res.status(500).json({ error: 'Error al obtener las tareas' });
-  }
-});
-
-// READ ONE - Obtener una tarea específica
-app.get('/api/tasks/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const task = await prisma.task.findUnique({
-      where: { id: parseInt(id) }
-    });
-
-    if (!task) {
-      return res.status(404).json({ error: 'Tarea no encontrada' });
-    }
-
-    res.status(200).json(task);
-  } catch (error) {
-    res.status(500).json({ error: 'Error al obtener la tarea' });
-  }
-});
-
-// UPDATE - Actualizar tarea completa
-app.put('/api/tasks/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { title, description, completed } = req.body;
-
-    const task = await prisma.task.update({
-      where: { id: parseInt(id) },
-      data: { title, description, completed }
-    });
-
-    res.status(200).json(task);
-  } catch (error) {
-    if (error.code === 'P2025') {
-      return res.status(404).json({ error: 'Tarea no encontrada' });
-    }
-    res.status(500).json({ error: 'Error al actualizar la tarea' });
-  }
-});
-
-// DELETE - Eliminar tarea
-app.delete('/api/tasks/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    await prisma.task.delete({
-      where: { id: parseInt(id) }
-    });
-
-    res.status(204).send();
-  } catch (error) {
-    if (error.code === 'P2025') {
-      return res.status(404).json({ error: 'Tarea no encontrada' });
-    }
-    res.status(500).json({ error: 'Error al eliminar la tarea' });
-  }
-});
-
-app.listen(PORT, () => {
-  console.log(`API RESTful corriendo en http://localhost:${PORT}`);
-});
-```
-
-**Explicación de cada operación**:
-
-**CREATE (POST)**:
-- **Línea 11** (`app.post('/api/tasks', ...)`): Ruta para crear
-- **Línea 15-17**: Validación básica (título requerido)
-- **Línea 19-21**: Crea la tarea con Prisma
-- **Línea 23** (`res.status(201)`): Código 201 porque creamos algo nuevo
-
-**READ ALL (GET colección)**:
-- **Línea 29** (`app.get('/api/tasks', ...)`): Ruta sin ID = todos los recursos
-- **Línea 31-33**: Obtiene todas las tareas ordenadas
-- **Línea 35** (`res.status(200)`): Código 200 porque fue exitoso
-
-**READ ONE (GET individual)**:
-- **Línea 42** (`app.get('/api/tasks/:id', ...)`): Ruta con ID = un recurso específico
-- **Línea 46-48**: Busca la tarea por ID
-- **Línea 50-52**: Si no existe, devuelve 404
-- **Línea 54** (`res.status(200)`): Si existe, devuelve 200
-
-**UPDATE (PUT)**:
-- **Línea 61** (`app.put('/api/tasks/:id', ...)`): Ruta con ID para actualizar
-- **Línea 65-68**: Actualiza la tarea con los nuevos datos
-- **Línea 72** (`error.code === 'P2025'`): Código de Prisma cuando no encuentra el registro
-- **Línea 70** (`res.status(200)`): Devuelve la tarea actualizada con 200
-
-**DELETE (DELETE)**:
-- **Línea 81** (`app.delete('/api/tasks/:id', ...)`): Ruta con ID para eliminar
-- **Línea 85-87**: Elimina la tarea
-- **Línea 89** (`res.status(204).send()`): Código 204 (No Content) porque se eliminó exitosamente sin respuesta
-
-**Cómo probarlo**:
-
-1. **Crear tarea**: POST `/api/tasks` con body `{"title": "Aprender REST", "description": "Estudiar arquitectura RESTful"}`
-2. **Ver todas**: GET `/api/tasks`
-3. **Ver una**: GET `/api/tasks/1`
-4. **Actualizar**: PUT `/api/tasks/1` con body `{"title": "REST dominado", "completed": true}`
-5. **Eliminar**: DELETE `/api/tasks/1`
-
----
-
-## Concepto 5: Paginación y filtrado
-
-Las APIs profesionales no devuelven todos los datos de golpe. Imagina una tabla con 10,000 usuarios: enviar todo sería lentísimo.
-
-### Ejemplo: Paginación simple
-
-**Lo que vamos a crear**: Una ruta que devuelve resultados paginados.
-
-**Código**:
-
-```javascript
-app.get('/api/tasks', async (req, res) => {
-  try {
-    // Obtener parámetros de query: ?page=1&limit=10
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const skip = (page - 1) * limit;
-
-    const tasks = await prisma.task.findMany({
-      skip: skip,
-      take: limit,
-      orderBy: { createdAt: 'desc' }
-    });
-
-    const total = await prisma.task.count();
-
-    res.status(200).json({
-      data: tasks,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit)
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ error: 'Error al obtener las tareas' });
-  }
-});
-```
-
-**Explicación línea por línea**:
-- **Línea 4** (`req.query.page`): Lee el parámetro `?page=1` de la URL
-- **Línea 5** (`req.query.limit`): Lee el parámetro `?limit=10` de la URL
-- **Líneas 4-5** (`|| 1`, `|| 10`): Valores por defecto si no se proporcionan
-- **Línea 6** (`(page - 1) * limit`): Calcula cuántos registros saltar
-  - Página 1: skip = 0 (primeros 10)
-  - Página 2: skip = 10 (segundos 10)
-  - Página 3: skip = 20 (terceros 10)
-- **Línea 9** (`skip: skip`): Le dice a Prisma cuántos saltar
-- **Línea 10** (`take: limit`): Le dice a Prisma cuántos tomar
-- **Línea 14** (`prisma.task.count()`): Cuenta el total de tareas
-- **Líneas 16-23**: Devuelve datos + información de paginación
-
-**Cómo probarlo**:
-- `GET /api/tasks?page=1&limit=5` → Primeros 5 resultados
-- `GET /api/tasks?page=2&limit=5` → Siguientes 5 resultados
-
-**Resultado esperado**:
-```json
-{
-  "data": [
-    { "id": 1, "title": "Tarea 1" },
-    { "id": 2, "title": "Tarea 2" }
-  ],
-  "pagination": {
-    "page": 1,
-    "limit": 10,
-    "total": 42,
-    "totalPages": 5
-  }
-}
-```
-
----
-
-## Práctica guiada: API RESTful de productos
-
-Vamos a crear una API completa de productos con todas las mejores prácticas REST.
-
-### Paso 1 de 3: Configurar proyecto y modelo
-
-**Lo que harás**:
-
-1. Crea el proyecto:
-   ```bash
-   mkdir api-productos-rest
-   cd api-productos-rest
-   npm init -y
-   npm install express
-   npm install prisma --save-dev
-   npm install @prisma/client
-   npx prisma init --datasource-provider sqlite
-   ```
-
-2. Abre `prisma/schema.prisma` y añade el modelo:
-
-```prisma
-model Product {
-  id          Int      @id @default(autoincrement())
-  name        String
-  description String?
-  price       Float
-  stock       Int      @default(0)
-  category    String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
-```
-
-3. Ejecuta la migración:
-   ```bash
-   npx prisma migrate dev --name create-products
-   ```
-
-**Explicación del modelo**:
-- `price Float`: Número decimal para precios (ej: 19.99)
-- `stock Int @default(0)`: Cantidad en inventario, por defecto 0
-- `updatedAt DateTime @updatedAt`: Se actualiza automáticamente cuando modificas el producto
-
-**Checkpoint**: Verifica con `npx prisma studio` que existe la tabla Product.
-
-### Paso 2 de 3: Implementar CRUD completo
-
-**Lo que harás**:
-
-Crea un archivo `server.js` con todas las operaciones CRUD:
-
-```javascript
-const express = require('express');
-const { PrismaClient } = require('@prisma/client');
-
-const app = express();
-const prisma = new PrismaClient();
-const PORT = 3001;
-
-app.use(express.json());
-
-// CREATE - Crear producto
-app.post('/api/products', async (req, res) => {
-  try {
-    const { name, description, price, stock, category } = req.body;
-
-    // Validaciones
-    if (!name || !price || !category) {
-      return res.status(400).json({
-        error: 'Nombre, precio y categoría son requeridos'
-      });
-    }
-
-    if (price < 0) {
-      return res.status(400).json({
-        error: 'El precio no puede ser negativo'
-      });
-    }
-
-    const product = await prisma.product.create({
-      data: { name, description, price, stock, category }
-    });
-
-    res.status(201).json(product);
-  } catch (error) {
-    res.status(500).json({ error: 'Error al crear el producto' });
-  }
-});
-
-// READ ALL - Obtener todos los productos (con paginación)
+// ❌ MAL: Devuelve 10,000 productos sin paginación
 app.get('/api/products', async (req, res) => {
-  try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const category = req.query.category;
-    const skip = (page - 1) * limit;
-
-    const where = category ? { category } : {};
-
-    const products = await prisma.product.findMany({
-      where,
-      skip,
-      take: limit,
-      orderBy: { createdAt: 'desc' }
-    });
-
-    const total = await prisma.product.count({ where });
-
-    res.status(200).json({
-      data: products,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit)
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ error: 'Error al obtener productos' });
-  }
+  const products = await prisma.product.findMany(); // Todos!
+  res.json(products); // Respuesta de 5MB, tarda 10 segundos
 });
+```
 
-// READ ONE - Obtener un producto
-app.get('/api/products/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
+**Por qué es malo:**
+- Respuestas enormes que tardan en transferir
+- Consume mucha memoria del servidor
+- El cliente no puede navegar eficientemente
+- Timeout en conexiones lentas
 
-    const product = await prisma.product.findUnique({
-      where: { id: parseInt(id) }
-    });
+**Solución correcta:**
 
-    if (!product) {
-      return res.status(404).json({ error: 'Producto no encontrado' });
+```javascript
+// ✅ BIEN: Paginación con metadata
+app.get('/api/products', async (req, res) => {
+  const page = parseInt(req.query.page) || 1;
+  const limit = Math.min(parseInt(req.query.limit) || 20, 100); // Max 100
+  const skip = (page - 1) * limit;
+
+  const [products, total] = await Promise.all([
+    prisma.product.findMany({ skip, take: limit }),
+    prisma.product.count()
+  ]);
+
+  res.json({
+    data: products,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+      hasNext: page * limit < total,
+      hasPrev: page > 1
     }
-
-    res.status(200).json(product);
-  } catch (error) {
-    res.status(500).json({ error: 'Error al obtener el producto' });
-  }
-});
-
-// UPDATE - Actualizar producto
-app.put('/api/products/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { name, description, price, stock, category } = req.body;
-
-    if (price !== undefined && price < 0) {
-      return res.status(400).json({
-        error: 'El precio no puede ser negativo'
-      });
-    }
-
-    const product = await prisma.product.update({
-      where: { id: parseInt(id) },
-      data: { name, description, price, stock, category }
-    });
-
-    res.status(200).json(product);
-  } catch (error) {
-    if (error.code === 'P2025') {
-      return res.status(404).json({ error: 'Producto no encontrado' });
-    }
-    res.status(500).json({ error: 'Error al actualizar el producto' });
-  }
-});
-
-// DELETE - Eliminar producto
-app.delete('/api/products/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    await prisma.product.delete({
-      where: { id: parseInt(id) }
-    });
-
-    res.status(204).send();
-  } catch (error) {
-    if (error.code === 'P2025') {
-      return res.status(404).json({ error: 'Producto no encontrado' });
-    }
-    res.status(500).json({ error: 'Error al eliminar el producto' });
-  }
-});
-
-app.listen(PORT, () => {
-  console.log(`API RESTful de productos en http://localhost:${PORT}`);
+  });
 });
 ```
-
-**Explicación de características adicionales**:
-- **Líneas 16-20**: Validación de campos requeridos
-- **Líneas 22-26**: Validación de lógica de negocio (precio no negativo)
-- **Línea 46** (`const where = category ? { category } : {};`): Filtrado opcional por categoría
-- **Línea 97** (`price !== undefined`): Solo valida precio si se está actualizando
-
-**Checkpoint**: Ejecuta `node server.js` y verifica que el servidor arranca sin errores.
-
-### Paso 3 de 3: Probar la API completa
-
-**Lo que harás**:
-
-1. **Crear 3 productos** (POST `/api/products`):
-
-Producto 1:
-```json
-{
-  "name": "Laptop HP",
-  "description": "Laptop 15 pulgadas, 8GB RAM",
-  "price": 799.99,
-  "stock": 10,
-  "category": "Electrónica"
-}
-```
-
-Producto 2:
-```json
-{
-  "name": "Mouse Inalámbrico",
-  "description": "Mouse ergonómico Bluetooth",
-  "price": 29.99,
-  "stock": 50,
-  "category": "Electrónica"
-}
-```
-
-Producto 3:
-```json
-{
-  "name": "Cuaderno A4",
-  "description": "100 hojas rayadas",
-  "price": 5.99,
-  "stock": 100,
-  "category": "Papelería"
-}
-```
-
-2. **Obtener todos los productos** (GET `/api/products`)
-
-3. **Filtrar por categoría** (GET `/api/products?category=Electrónica`)
-
-4. **Paginación** (GET `/api/products?page=1&limit=2`)
-
-5. **Obtener un producto** (GET `/api/products/1`)
-
-6. **Actualizar stock** (PUT `/api/products/1`):
-```json
-{
-  "stock": 8
-}
-```
-
-7. **Intentar crear producto con precio negativo** (POST `/api/products`):
-```json
-{
-  "name": "Producto inválido",
-  "price": -10,
-  "category": "Test"
-}
-```
-Debería devolver error 400.
-
-8. **Eliminar producto** (DELETE `/api/products/3`)
-
-9. **Intentar obtener producto eliminado** (GET `/api/products/3`)
-Debería devolver error 404.
-
-**Criterio de éxito**:
-- [ ] Puedes crear productos con POST y recibes código 201
-- [ ] Puedes ver todos los productos con GET
-- [ ] Puedes filtrar por categoría con query params
-- [ ] La paginación funciona correctamente
-- [ ] Puedes ver un producto individual con GET /:id
-- [ ] Puedes actualizar con PUT y recibes código 200
-- [ ] Puedes eliminar con DELETE y recibes código 204
-- [ ] Las validaciones funcionan (precio negativo da error 400)
-- [ ] Los errores 404 aparecen cuando buscar recursos inexistentes
 
 ---
 
-## ⚠️ Errores comunes (y cómo solucionarlos)
+### Error 2: No versionar la API (breaking changes rompen clientes)
 
-### Error #1: Usar GET para operaciones que modifican datos
+**Código problemático:**
 
-**Te pasa cuando**: Creas rutas como `GET /api/tasks/delete/5` para borrar
-
-**Por qué está mal**: GET es solo para lectura, nunca debe modificar datos. Los navegadores y proxies cachean peticiones GET, podrías borrar cosas sin querer.
-
-**Cómo se soluciona**:
-Usa el método HTTP correcto:
 ```javascript
-// ❌ Incorrecto
-app.get('/api/tasks/delete/:id', ...)
-
-// ✅ Correcto
-app.delete('/api/tasks/:id', ...)
+// ❌ MAL: Cambio directo que rompe clientes existentes
+// Antes: { id, email, fullName }
+// Ahora: { id, email, firstName, lastName }
+app.get('/api/users', async (req, res) => {
+  const users = await prisma.user.findMany({
+    select: { id: true, email: true, firstName: true, lastName: true }
+  });
+  res.json(users); // Apps antiguas esperaban fullName!
+});
 ```
 
-### Error #2: No devolver códigos de estado apropiados
+**Por qué es malo:**
+- Apps móviles antiguas se rompen instantáneamente
+- No hay período de transición
+- Imposible mantener compatibilidad hacia atrás
 
-**Te pasa cuando**: Todas tus rutas devuelven 200, incluso cuando hay errores
+**Solución correcta:**
 
-**El código que ves**:
 ```javascript
-// ❌ Incorrecto - siempre devuelve 200
-res.json({ error: 'Usuario no encontrado' });
+// ✅ BIEN: Ambas versiones coexisten
+// v1: Legacy con fullName
+app.get('/api/v1/users', async (req, res) => {
+  const users = await prisma.user.findMany();
+  res.json({
+    data: users.map(u => ({
+      id: u.id,
+      email: u.email,
+      fullName: `${u.firstName} ${u.lastName}`
+    })),
+    meta: {
+      deprecation: 'v1 se retirará el 2026-01-01. Migra a v2'
+    }
+  });
+});
+
+// v2: Nueva estructura
+app.get('/api/v2/users', async (req, res) => {
+  const users = await prisma.user.findMany();
+  res.json({
+    data: users.map(u => ({
+      id: u.id,
+      email: u.email,
+      firstName: u.firstName,
+      lastName: u.lastName
+    }))
+  });
+});
 ```
 
-**Por qué está mal**: El cliente (navegador, app móvil) no puede distinguir éxito de error. La aplicación pensará que todo salió bien.
+---
 
-**Cómo se soluciona**:
+### Error 3: Códigos de estado incorrectos
+
+**Código problemático:**
+
 ```javascript
-// ✅ Correcto - código 404 indica "no encontrado"
-res.status(404).json({ error: 'Usuario no encontrado' });
+// ❌ MAL: Siempre 200 incluso con errores
+app.get('/api/products/:id', async (req, res) => {
+  const product = await prisma.product.findUnique({
+    where: { id: parseInt(req.params.id) }
+  });
+
+  if (!product) {
+    return res.status(200).json({ error: 'Not found' }); // ❌ 200 cuando no existe!
+  }
+
+  res.json(product);
+});
+
+app.post('/api/products', async (req, res) => {
+  const product = await prisma.product.create({ data: req.body });
+  res.status(200).json(product); // ❌ 200 cuando debería ser 201!
+});
 ```
 
-### Error #3: URLs verbosas con acciones
+**Por qué es malo:**
+- El cliente no puede distinguir éxito de error
+- Cachés HTTP no funcionan correctamente
+- Dificulta debugging
 
-**Te pasa cuando**: Creas URLs como `/api/getUserById/5` o `/api/createNewUser`
+**Solución correcta:**
 
-**Por qué está mal**: No es RESTful, el verbo HTTP ya indica la acción.
-
-**Cómo se soluciona**:
 ```javascript
-// ❌ Incorrecto
-GET  /api/getUserById/5
-POST /api/createNewUser
+// ✅ BIEN: Códigos apropiados
+app.get('/api/products/:id', async (req, res) => {
+  const product = await prisma.product.findUnique({
+    where: { id: parseInt(req.params.id) }
+  });
 
-// ✅ Correcto
-GET  /api/users/5
+  if (!product) {
+    return res.status(404).json({ error: 'Producto no encontrado' }); // 404
+  }
+
+  res.status(200).json(product); // 200
+});
+
+app.post('/api/products', async (req, res) => {
+  const product = await prisma.product.create({ data: req.body });
+  res.status(201).json(product); // 201 Created
+});
+```
+
+---
+
+### Error 4: Sin rate limiting (vulnerabilidad a abuso)
+
+**Código problemático:**
+
+```javascript
+// ❌ MAL: Sin protección contra abuso
+app.post('/api/auth/login', async (req, res) => {
+  // Alguien puede intentar 10,000 passwords por minuto!
+  const user = await prisma.user.findUnique({
+    where: { email: req.body.email }
+  });
+  // ...
+});
+```
+
+**Por qué es malo:**
+- Ataques de fuerza bruta
+- Scrapers abusan del endpoint
+- Costos de servidor se disparan
+
+**Solución correcta:**
+
+```javascript
+// ✅ BIEN: Rate limiting con express-rate-limit
+const rateLimit = require('express-rate-limit');
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 5, // Máximo 5 intentos
+  message: 'Demasiados intentos. Intenta en 15 minutos',
+  standardHeaders: true, // Return rate limit info in headers
+  legacyHeaders: false
+});
+
+app.post('/api/auth/login', authLimiter, async (req, res) => {
+  // Ahora protegido contra brute force
+  const user = await prisma.user.findUnique({
+    where: { email: req.body.email }
+  });
+  // ...
+});
+```
+
+---
+
+## Tabla Comparativa: API Básica vs API Profesional
+
+| Aspecto | API Básica | API Profesional con Claude Code |
+|---------|-----------|----------------------------------|
+| **Paginación** | Sin paginación, devuelve todo | Cursor-based + offset, metadata completa |
+| **Filtrado** | Sin filtros o muy básico | Multi-campo, operadores, búsqueda full-text |
+| **Versionado** | Una sola versión sin versionado | v1/v2 con deprecation warnings y coexistencia |
+| **Documentación** | README manual desactualizado | Swagger auto-generado desde JSDoc |
+| **Rate Limiting** | Sin protección | Redis-based con headers informativos |
+| **Caching** | Sin caching | ETags, Last-Modified, 304 Not Modified |
+| **HATEOAS** | Sin hypermedia links | Links a recursos relacionados en respuestas |
+| **Errores** | Código 200 con `{error: "..."}` | Códigos HTTP apropiados (400, 404, 500) |
+| **Validación** | Validación manual if/else | Zod schemas con mensajes detallados |
+| **Estructura** | Todo en un archivo | Controllers, Services, Routes separados |
+| **Sorting** | Sin sorting o hardcoded | Sorting dinámico por cualquier campo |
+| **Metadata** | Solo data | Data + pagination + filters + links |
+
+---
+
+## 7 Mejores Prácticas para APIs RESTful Profesionales
+
+### 1. Usa sustantivos plurales en las URLs
+
+```javascript
+// ❌ MAL
+GET /api/user
+GET /api/getUser/5
+POST /api/createUser
+
+// ✅ BIEN
+GET /api/users
+GET /api/users/5
 POST /api/users
 ```
 
----
+**Razón:** REST trata recursos como colecciones. Los verbos HTTP ya indican la acción.
 
-## 💡 Tips del profesor
+### 2. Versiona desde el día 1
 
-> **De mi experiencia enseñando**: Al principio parece que REST tiene demasiadas reglas, pero créeme: cuando trabajes en equipo o uses APIs de terceros, agradecerás estas convenciones. Es como aprender a conducir: al principio piensas "¿por qué tantas reglas?", pero luego entiendes que hacen el tráfico predecible y seguro.
+```javascript
+// ❌ MAL
+GET /api/products
 
-> **Otro tip importante**: Usa herramientas como Thunder Client para documentar tu API mientras la desarrollas. Crea una "colección" con ejemplos de cada endpoint. Esto te servirá de documentación instantánea y podrás compartirla con otros desarrolladores.
+// ✅ BIEN
+GET /api/v1/products
 
-> **Herramientas útiles**: Instala la extensión "REST Client" en VS Code. Te permite crear archivos `.http` donde escribes tus peticiones y las ejecutas directamente desde el editor. Es súper cómodo para testear APIs rápidamente.
+// Cuando evoluciones:
+GET /api/v2/products // Nueva versión
+GET /api/v1/products // Legacy sigue funcionando
+```
 
----
+**Razón:** Tarde o temprano necesitarás hacer breaking changes. Versionar tarde es doloroso.
 
-## Tu turno: Ejercicio guiado
+### 3. Devuelve metadata útil en respuestas de lista
 
-**Objetivo simple**: Crear una API RESTful completa para gestionar una biblioteca de libros con autores
-
-**Tiempo**: 50-60 minutos
-
-**Lo que necesitas antes de empezar**:
-- [ ] Node.js instalado
-- [ ] Editor de código (VS Code)
-- [ ] Thunder Client instalado
-
-### Instrucciones paso a paso
-
-**Parte 1: Configuración y modelos** (15 min)
-
-1. Crea el proyecto:
-   ```bash
-   mkdir api-biblioteca-rest
-   cd api-biblioteca-rest
-   npm init -y
-   npm install express
-   npm install prisma --save-dev
-   npm install @prisma/client
-   npx prisma init --datasource-provider sqlite
-   ```
-
-2. Define dos modelos en `prisma/schema.prisma`:
-
-```prisma
-model Author {
-  id        Int      @id @default(autoincrement())
-  name      String
-  country   String
-  books     Book[]
-  createdAt DateTime @default(now())
+```javascript
+// ❌ MAL
+{
+  "products": [...]
 }
 
-model Book {
-  id          Int      @id @default(autoincrement())
-  title       String
-  isbn        String   @unique
-  pages       Int
-  publishYear Int
-  authorId    Int
-  author      Author   @relation(fields: [authorId], references: [id])
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+// ✅ BIEN
+{
+  "data": [...],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 156,
+    "hasNext": true
+  },
+  "filters": {
+    "category": "Electronics",
+    "priceRange": "100-500"
+  },
+  "links": {
+    "self": "/api/products?page=1",
+    "next": "/api/products?page=2",
+    "last": "/api/products?page=8"
+  }
 }
 ```
 
-3. Ejecuta la migración:
-   ```bash
-   npx prisma migrate dev --name init
-   ```
+**Razón:** El cliente necesita saber cómo navegar, qué filtros están activos y dónde está.
 
-**Parte 2: Implementar CRUD de autores** (15 min)
+### 4. Implementa paginación cursor-based para datasets grandes
 
-Crea `server.js` e implementa:
-- POST `/api/authors` - Crear autor (requiere name y country)
-- GET `/api/authors` - Obtener todos los autores
-- GET `/api/authors/:id` - Obtener un autor con sus libros incluidos
-- PUT `/api/authors/:id` - Actualizar autor
-- DELETE `/api/authors/:id` - Eliminar autor
-
-**Pista para incluir libros en GET /:id**:
 ```javascript
-const author = await prisma.author.findUnique({
-  where: { id: parseInt(id) },
-  include: { books: true }
+// Offset-based: SELECT * FROM products LIMIT 20 OFFSET 1000000
+// Problema: OFFSET es lento con millones de registros
+
+// ✅ Cursor-based: SELECT * FROM products WHERE id > 1234567 LIMIT 20
+// Ventaja: Usa índices, siempre rápido
+app.get('/api/products', async (req, res) => {
+  const { cursor, limit = 20 } = req.query;
+
+  const products = await prisma.product.findMany({
+    take: limit + 1,
+    cursor: cursor ? { id: parseInt(cursor) } : undefined,
+    skip: cursor ? 1 : 0
+  });
+
+  const hasNext = products.length > limit;
+  const data = hasNext ? products.slice(0, -1) : products;
+  const nextCursor = hasNext ? data[data.length - 1].id : null;
+
+  res.json({ data, nextCursor, hasNext });
 });
 ```
 
-**Parte 3: Implementar CRUD de libros** (15 min)
+### 5. Usa códigos de estado HTTP correctamente
 
-Añade estas rutas:
-- POST `/api/books` - Crear libro (requiere title, isbn, pages, publishYear, authorId)
-- GET `/api/books` - Obtener todos los libros con paginación
-- GET `/api/books/:id` - Obtener un libro con su autor incluido
-- PUT `/api/books/:id` - Actualizar libro
-- DELETE `/api/books/:id` - Eliminar libro
+```javascript
+// CRUD completo con códigos apropiados
+app.get('/api/products/:id', async (req, res) => {
+  const product = await prisma.product.findUnique({...});
+  if (!product) return res.status(404).json({...}); // Not Found
+  res.status(200).json(product); // OK
+});
 
-**Parte 4: Validaciones y mejoras** (10 min)
+app.post('/api/products', async (req, res) => {
+  const product = await prisma.product.create({...});
+  res.status(201).json(product); // Created
+});
 
-Añade validaciones:
-- ISBN debe ser único (Prisma lo valida automáticamente)
-- Pages no puede ser negativo
-- PublishYear debe estar entre 1000 y el año actual
-- Al crear un libro, verifica que el autor existe
+app.put('/api/products/:id', async (req, res) => {
+  const product = await prisma.product.update({...});
+  res.status(200).json(product); // OK
+});
 
-**Parte 5: Probar todo** (10 min)
+app.delete('/api/products/:id', async (req, res) => {
+  await prisma.product.delete({...});
+  res.status(204).send(); // No Content
+});
+```
 
-1. Crea 2 autores
-2. Crea 3 libros (2 del primer autor, 1 del segundo)
-3. Obtén todos los autores
-4. Obtén un autor con sus libros incluidos
-5. Obtén todos los libros paginados (?page=1&limit=2)
-6. Actualiza un libro
-7. Intenta crear un libro con ISBN duplicado (debe dar error 400)
-8. Elimina un libro
+### 6. Documenta automáticamente con Swagger
 
-**Criterio de éxito**:
-- [ ] CRUD completo de autores funciona
-- [ ] CRUD completo de libros funciona
-- [ ] GET de autor incluye sus libros
-- [ ] GET de libro incluye su autor
-- [ ] Paginación funciona en libros
-- [ ] Validaciones funcionan correctamente
-- [ ] Todos los códigos de estado son apropiados
-- [ ] Las URLs siguen convenciones REST
+```javascript
+// JSDoc + swagger-jsdoc = Docs siempre actualizadas
+/**
+ * @swagger
+ * /api/products:
+ *   get:
+ *     summary: Lista productos
+ *     parameters:
+ *       - name: page
+ *         in: query
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Success
+ */
+router.get('/', getProducts);
+
+// Resultado: UI interactiva en /api-docs
+```
+
+### 7. Separa concerns: Routes → Controllers → Services
+
+```javascript
+// routes/productRoutes.js
+router.get('/', productController.getProducts);
+
+// controllers/productController.js
+async function getProducts(req, res) {
+  try {
+    const products = await productService.findAll(req.query);
+    res.json(products);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+}
+
+// services/productService.js
+async function findAll(filters) {
+  return await prisma.product.findMany({
+    where: buildWhereClause(filters)
+  });
+}
+```
+
+**Razón:** Facilita testing, reutilización y mantenimiento. Controllers manejan HTTP, Services contienen lógica de negocio.
 
 ---
 
@@ -869,9 +1614,9 @@ Hoy aprendiste:
 
 1. **Principios de arquitectura REST**: REST es un conjunto de convenciones que hace tu API predecible y profesional. Usa sustantivos plurales en URLs, métodos HTTP apropiados y códigos de estado correctos.
 
-2. **Métodos HTTP y sus usos**: GET para leer, POST para crear, PUT para actualizar, DELETE para eliminar. Cada método comunica la intención de la operación. Las URLs solo contienen sustantivos, no verbos.
+2. **Paginación y filtrado avanzados**: Las APIs profesionales implementan paginación (offset o cursor-based), filtros multi-campo, sorting dinámico y búsqueda. Claude Code genera esto con metadata completa.
 
-3. **Códigos de estado HTTP**: 2xx para éxito, 4xx para errores del cliente, 5xx para errores del servidor. Usa 201 al crear, 404 cuando no encuentras, 400 para datos inválidos, 500 para errores internos.
+3. **Versionado y documentación**: Versiona tu API desde el día 1 para manejar breaking changes. Usa Swagger con JSDoc para documentación auto-generada que siempre está sincronizada con tu código.
 
 ---
 

@@ -442,6 +442,366 @@ Module not found: Can't resolve 'react'
 
 ---
 
+## 🤖 Claude Code en Acción: Tu Asistente para React y TypeScript
+
+### ¿Cómo Claude Code acelera tu aprendizaje de React?
+
+Aprender React y TypeScript puede ser intimidante al principio. Hay mucha sintaxis nueva, conceptos de componentes, y la configuración inicial puede ser confusa. Aquí es donde Claude Code se convierte en tu mejor aliado.
+
+Claude Code no solo te ayuda a escribir código React más rápido, sino que actúa como:
+- **Tu tutor personal** que explica conceptos mientras genera código
+- **Tu pair programmer** que te muestra mejores prácticas en tiempo real
+- **Tu detector de errores** que previene problemas comunes antes de que ocurran
+
+Veamos cómo usar Claude Code para dominar React y TypeScript desde el día 1.
+
+---
+
+### Prompts Efectivos para React y TypeScript
+
+**Prompt 1: Crear Proyecto React + TypeScript desde Cero**
+
+```
+Necesito crear un proyecto nuevo de React con TypeScript.
+
+Requisitos:
+- Usar Vite (más rápido que Create React App)
+- Configuración TypeScript estricta
+- Estructura de carpetas limpia y escalable
+
+Por favor:
+1. Dame los comandos exactos para crear el proyecto
+2. Explica qué hace cada comando
+3. Muéstrame la estructura de carpetas recomendada
+```
+
+**Qué hace Claude Code**:
+1. Genera los comandos de instalación específicos para tu sistema operativo
+2. Explica las opciones de configuración de Vite y TypeScript
+3. Propone una estructura de carpetas siguiendo mejores prácticas (separación de componentes, hooks, utils)
+4. Puede ajustar la configuración según tus necesidades específicas
+
+**Resultado esperado**: Comandos listos para copiar y pegar, con explicaciones de cada paso.
+
+**Código generado** (ejemplo):
+```bash
+# Crear proyecto con Vite
+npm create vite@latest mi-primera-app -- --template react-ts
+
+# Entrar al directorio
+cd mi-primera-app
+
+# Instalar dependencias
+npm install
+
+# Iniciar servidor de desarrollo
+npm run dev
+```
+
+---
+
+**Prompt 2: Crear tu Primer Componente React con TypeScript**
+
+```
+Quiero crear un componente React en TypeScript que:
+- Se llame "TarjetaUsuario"
+- Reciba props: nombre (string), edad (number), rol (string)
+- Muestre esta información en una tarjeta con estilo simple
+- Use TypeScript para tipar correctamente las props
+
+Incluye:
+- El código del componente
+- Explicación de los tipos de TypeScript usados
+- Cómo importar y usar este componente
+```
+
+**Qué hace Claude Code**:
+1. Crea la interfaz TypeScript para las props
+2. Genera el componente funcional con tipos correctos
+3. Añade JSX con estructura semántica
+4. Explica cada parte del código
+5. Muestra cómo usar el componente en otro archivo
+
+**Código generado** (ejemplo):
+```typescript
+// TarjetaUsuario.tsx
+
+// 1. Definir tipos de las props
+interface TarjetaUsuarioProps {
+  nombre: string;
+  edad: number;
+  rol: string;
+}
+
+// 2. Componente funcional con props tipadas
+export function TarjetaUsuario({ nombre, edad, rol }: TarjetaUsuarioProps) {
+  return (
+    <div className="tarjeta-usuario">
+      <h2>{nombre}</h2>
+      <p>Edad: {edad} años</p>
+      <p>Rol: {rol}</p>
+    </div>
+  );
+}
+
+// 3. Cómo usarlo en App.tsx:
+// import { TarjetaUsuario } from './components/TarjetaUsuario';
+//
+// function App() {
+//   return <TarjetaUsuario nombre="Ana" edad={25} rol="Desarrolladora" />;
+// }
+```
+
+---
+
+**Prompt 3: Entender y Solucionar Errores de TypeScript**
+
+```
+Tengo este error de TypeScript en mi componente React:
+
+[Pega aquí el mensaje de error]
+
+¿Qué significa este error y cómo lo soluciono?
+Explícamelo como si fuera principiante.
+```
+
+**Qué hace Claude Code**:
+1. Identifica el tipo de error (tipo incorrecto, prop faltante, etc.)
+2. Explica la causa del error en términos simples
+3. Muestra el código corregido
+4. Previene errores similares dando consejos
+
+**Ejemplo de uso**:
+Si tu error es: `Property 'email' does not exist on type 'Usuario'`
+
+Claude Code te explicará que intentas acceder a una propiedad que no definiste en el tipo Usuario, y te mostrará cómo añadirla correctamente a la interfaz.
+
+---
+
+### Workflow Completo: Crear una App de Lista de Tareas
+
+**Escenario**: Quieres crear tu primera app funcional: un gestor de tareas básico.
+
+**Paso 1: Planificación con Claude Code**
+```
+Quiero crear una app de lista de tareas en React + TypeScript.
+
+Características:
+- Mostrar lista de tareas
+- Añadir nueva tarea
+- Marcar tarea como completada
+- Eliminar tarea
+
+¿Qué componentes necesito y cómo debería estructurar el código?
+Dame un plan antes de empezar a programar.
+```
+
+**Claude Code te dará**:
+- Lista de componentes necesarios (ListaTareas, ItemTarea, FormularioNuevaTarea)
+- Estructura de estado (qué datos guardar y dónde)
+- Orden de implementación recomendado
+
+**Paso 2: Crear el tipo de datos**
+```
+Basándome en el plan anterior, crea el tipo TypeScript para una tarea.
+Debe incluir: id, texto, completada.
+```
+
+**Código generado**:
+```typescript
+interface Tarea {
+  id: number;
+  texto: string;
+  completada: boolean;
+}
+```
+
+**Paso 3: Componente principal**
+```
+Crea el componente App.tsx que:
+- Use useState para manejar el array de tareas
+- Tenga funciones para: agregar, completar, eliminar tareas
+- Renderice la lista de tareas
+- Usa el tipo Tarea que definimos antes
+```
+
+**Paso 4: Iterar y mejorar**
+```
+El código funciona, pero quiero mejorarlo:
+- Añade validación para no aceptar tareas vacías
+- Persiste las tareas en localStorage
+- Mejora los estilos con Tailwind CSS
+```
+
+Claude Code irá añadiendo cada feature de forma incremental, explicando cada cambio.
+
+**Código final** (simplificado):
+```typescript
+import { useState, useEffect } from 'react';
+
+interface Tarea {
+  id: number;
+  texto: string;
+  completada: boolean;
+}
+
+function App() {
+  const [tareas, setTareas] = useState<Tarea[]>([]);
+  const [textoNuevo, setTextoNuevo] = useState('');
+
+  // Cargar tareas de localStorage
+  useEffect(() => {
+    const tareasGuardadas = localStorage.getItem('tareas');
+    if (tareasGuardadas) {
+      setTareas(JSON.parse(tareasGuardadas));
+    }
+  }, []);
+
+  // Guardar tareas cuando cambien
+  useEffect(() => {
+    localStorage.setItem('tareas', JSON.stringify(tareas));
+  }, [tareas]);
+
+  const agregarTarea = () => {
+    if (textoNuevo.trim() === '') return;
+
+    const nuevaTarea: Tarea = {
+      id: Date.now(),
+      texto: textoNuevo,
+      completada: false
+    };
+
+    setTareas([...tareas, nuevaTarea]);
+    setTextoNuevo('');
+  };
+
+  const toggleCompletada = (id: number) => {
+    setTareas(tareas.map(t =>
+      t.id === id ? { ...t, completada: !t.completada } : t
+    ));
+  };
+
+  const eliminarTarea = (id: number) => {
+    setTareas(tareas.filter(t => t.id !== id));
+  };
+
+  return (
+    <div className="container">
+      <h1>Mis Tareas</h1>
+
+      <div>
+        <input
+          value={textoNuevo}
+          onChange={(e) => setTextoNuevo(e.target.value)}
+          placeholder="Nueva tarea..."
+        />
+        <button onClick={agregarTarea}>Añadir</button>
+      </div>
+
+      <ul>
+        {tareas.map(tarea => (
+          <li key={tarea.id}>
+            <input
+              type="checkbox"
+              checked={tarea.completada}
+              onChange={() => toggleCompletada(tarea.id)}
+            />
+            <span style={{
+              textDecoration: tarea.completada ? 'line-through' : 'none'
+            }}>
+              {tarea.texto}
+            </span>
+            <button onClick={() => eliminarTarea(tarea.id)}>❌</button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+export default App;
+```
+
+---
+
+### Errores Comunes que Claude Code Previene
+
+**Error #1: Olvidar tipar las props**
+**Problema**: Crear componentes sin definir el tipo de las props, lo que causa errores difíciles de debuggear.
+
+```typescript
+// ❌ Sin tipos - propenso a errores
+function Saludo({ nombre }) {
+  return <h1>Hola {nombre}</h1>;
+}
+```
+
+**Solución con Claude Code**:
+```
+"Convierte este componente a TypeScript con props tipadas"
+```
+
+**Resultado**:
+```typescript
+// ✅ Con tipos - seguro y claro
+interface SaludoProps {
+  nombre: string;
+}
+
+function Saludo({ nombre }: SaludoProps) {
+  return <h1>Hola {nombre}</h1>;
+}
+```
+
+**Error #2: Mutar el estado directamente**
+**Problema**: Modificar el estado directamente en lugar de usar la función setter.
+
+```typescript
+// ❌ Incorrecto
+const [usuario, setUsuario] = useState({ nombre: 'Ana', edad: 25 });
+usuario.edad = 26; // Esto NO funciona en React
+```
+
+**Solución con Claude Code**:
+```
+"Muéstrame la forma correcta de actualizar objetos en el estado de React"
+```
+
+**Resultado**:
+```typescript
+// ✅ Correcto
+setUsuario({ ...usuario, edad: 26 });
+// o con función:
+setUsuario(prev => ({ ...prev, edad: 26 }));
+```
+
+**Error #3: No entender cuándo usar useEffect**
+**Problema**: Poner lógica en lugares incorrectos causando re-renderizados infinitos.
+
+**Solución con Claude Code**:
+```
+"Tengo este código que causa un loop infinito. ¿Qué está mal y cómo lo arreglo?"
+[Pegar código problemático]
+```
+
+Claude Code identificará el problema (probablemente falta el array de dependencias) y mostrará la solución correcta.
+
+---
+
+### Comparación: Aprender React Con vs Sin Claude Code
+
+| Aspecto | Sin Claude Code | Con Claude Code |
+|---------|----------------|-----------------|
+| **Tiempo de setup** | 1-2 horas investigando | 5-10 minutos con instrucciones claras |
+| **Entender errores** | Buscar en Google/Stack Overflow | Explicación inmediata y contextual |
+| **Aprender buenas prácticas** | Leer múltiples tutoriales | Código generado ya sigue mejores prácticas |
+| **Crear primer componente** | 30-60 minutos probando | 10 minutos con explicaciones |
+| **Configurar TypeScript** | Configuración manual compleja | Configuración guiada paso a paso |
+| **Debugging** | Trial and error extenso | Asistencia en tiempo real |
+| **Curva de aprendizaje** | Empinada y frustrante | Suave y guiada |
+
+---
+
 ## 💡 Tips del profesor
 
 > **De mi experiencia enseñando**: Al principio, la diferencia entre JavaScript y JSX puede confundir. Recuerda: si parece HTML pero está dentro de una función de React, es JSX. Con una semana de práctica se volverá natural.
@@ -519,6 +879,108 @@ Module not found: Can't resolve 'react'
 
 **Desafío extra** (opcional): Crea otro componente llamado `MisHobbies` que muestre una lista de tus 3 hobbies favoritos usando una lista `<ul>` y varios `<li>`. Añádelo a `App.tsx` debajo de `MiPerfil`.
 
+**Hazlo con Claude Code**:
+1. Pide a Claude Code que te guíe en la creación del componente MiPerfil
+2. Usa el prompt: `"Crea un componente React llamado MiPerfil que muestre: nombre, edad, ciudad y descripción. Usa TypeScript e incluye estilos CSS modernos con borde azul y fondo celeste."`
+3. Itera pidiendo mejoras: "Añade un avatar con las iniciales del nombre", "Mejora la responsividad para móviles"
+4. Criterio de éxito: El componente funciona correctamente, tiene tipos TypeScript, y se ve profesional con los estilos aplicados
+
+---
+
+## Ejercicio Avanzado: Workflow Completo - Tu Primera App React
+
+**Objetivo**: Crear una aplicación completa de contador interactivo usando React, TypeScript y Claude Code.
+
+**Requisitos de la app**:
+- Mostrar un número que inicia en 0
+- Botón "+" que incrementa el contador
+- Botón "-" que decrementa el contador
+- Botón "Reset" que vuelve a 0
+- El botón "-" se debe deshabilitar cuando el contador es 0
+- Usar TypeScript para tipar todo correctamente
+
+**Desafío paso a paso**:
+
+1. **Setup**: Pide a Claude Code que te cree el proyecto base
+   ```
+   "Crea un proyecto Vite + React + TypeScript para una app de contador.
+   Dame los comandos y la estructura inicial."
+   ```
+
+2. **Componente**: Pide el componente principal
+   ```
+   "Crea el componente Contador con las características mencionadas arriba.
+   Usa TypeScript e incluye comentarios explicativos."
+   ```
+
+3. **Mejora**: Itera para añadir features
+   ```
+   "Añade: historial de los últimos 5 valores del contador"
+   ```
+
+4. **Estilos**: Pide ayuda con CSS
+   ```
+   "Genera estilos CSS modernos para que la app se vea profesional"
+   ```
+
+**Criterios de éxito**:
+- [ ] La app funciona sin errores de TypeScript
+- [ ] Todos los botones funcionan correctamente
+- [ ] El botón "-" se deshabilita apropiadamente
+- [ ] El código está bien tipado y comentado
+- [ ] Aplicaste al menos 2 iteraciones de mejora con Claude Code
+
+**Tiempo estimado**: 30-45 minutos
+
+**Recursos**:
+- Documentación de useState: https://react.dev/reference/react/useState
+- Guía de TypeScript en React: https://react-typescript-cheatsheet.netlify.app/
+
+**Pistas si te atascas**:
+- Para deshabilitar un botón: usa el atributo `disabled={condición}`
+- Para guardar historial: usa un array en el estado y el spread operator `[...historial, nuevoValor]`
+- Para limitar el historial a 5 elementos: usa `.slice(-5)` en el array
+
+**Código de ejemplo del componente base** (puedes usar este como punto de partida):
+```tsx
+import { useState } from 'react';
+
+function Contador() {
+  const [contador, setContador] = useState<number>(0);
+
+  const incrementar = () => {
+    setContador(contador + 1);
+  };
+
+  const decrementar = () => {
+    setContador(contador - 1);
+  };
+
+  const reset = () => {
+    setContador(0);
+  };
+
+  return (
+    <div className="contador-container">
+      <h1>Contador: {contador}</h1>
+      <div className="botones">
+        <button onClick={incrementar}>+</button>
+        <button onClick={decrementar} disabled={contador === 0}>-</button>
+        <button onClick={reset}>Reset</button>
+      </div>
+    </div>
+  );
+}
+
+export default Contador;
+```
+
+**Desafío adicional** (para estudiantes avanzados):
+- Añade botones para incrementar/decrementar de 5 en 5 y de 10 en 10
+- Implementa un límite máximo de 100 y mínimo de -100
+- Añade animaciones cuando el número cambia
+- Persiste el valor del contador en localStorage para que se mantenga al recargar
+
 ---
 
 ## Resumen en 3 puntos
@@ -530,6 +992,8 @@ Hoy aprendiste:
 2. **TypeScript y tipos**: TypeScript es JavaScript con tipos que te ayudan a evitar errores. Es como poner etiquetas claras en tus variables y funciones para saber qué tipo de información deben manejar (texto, número, verdadero/falso, etc.).
 
 3. **Tu primer proyecto**: Aprendiste a crear un proyecto React con TypeScript usando Vite, a escribir componentes simples, a importarlos y usarlos en otros componentes, y a aplicar estilos CSS básicos.
+
+**Bonus**: Ahora también dominas cómo usar Claude Code como tu asistente personal para React y TypeScript. Puedes generar componentes, entender errores, y crear aplicaciones completas de forma guiada e incremental.
 
 ---
 

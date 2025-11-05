@@ -1,6 +1,7 @@
 import { Routes, Route } from 'react-router-dom';
 import { useEffect } from 'react';
 import { useAuthStore } from './store/authStore';
+import './utils/authDebug';
 
 // Layouts
 import PublicLayout from './layouts/PublicLayout';
@@ -23,6 +24,9 @@ import MyCoursesPage from './pages/campus/MyCoursesPage';
 import CourseLearningPage from './pages/campus/CourseLearningPage';
 import ModuleTestPage from './pages/campus/ModuleTestPage';
 import ProfilePage from './pages/campus/ProfilePage';
+import GamificationDashboard from './pages/student/GamificationDashboard';
+import ExercisesPage from './pages/campus/student/ExercisesPage';
+import LessonView from './pages/campus/student/LessonView';
 
 // Admin Pages
 import AdminDashboard from './pages/campus/admin/Dashboard';
@@ -40,7 +44,49 @@ function App() {
   const loadUser = useAuthStore((state) => state.loadUser);
 
   useEffect(() => {
+    // Interceptar cambios en localStorage para debug
+    const originalRemoveItem = Storage.prototype.removeItem;
+    const originalClear = Storage.prototype.clear;
+    const originalSetItem = Storage.prototype.setItem;
+
+    Storage.prototype.removeItem = function(key: string) {
+      if (key === 'token' || key === 'user' || key === 'refreshToken') {
+        console.log('⚠️ localStorage.removeItem called for:', key);
+        console.trace('Stack trace:');
+      }
+      return originalRemoveItem.apply(this, [key]);
+    };
+
+    Storage.prototype.clear = function() {
+      console.log('🗑️ localStorage.clear() called');
+      console.trace('Stack trace:');
+      return originalClear.apply(this);
+    };
+
+    Storage.prototype.setItem = function(key: string, value: string) {
+      if (key === 'token' || key === 'user' || key === 'refreshToken') {
+        console.log('💾 localStorage.setItem called for:', key, 'value length:', value?.length);
+      }
+      return originalSetItem.apply(this, [key, value]);
+    };
+
+    // Listener para cambios de storage desde otras pestañas
+    const handleStorageChange = (e: StorageEvent) => {
+      console.log('🔄 Storage event detected:', {
+        key: e.key,
+        oldValue: e.oldValue?.substring(0, 50),
+        newValue: e.newValue?.substring(0, 50),
+        url: e.url
+      });
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+
     loadUser();
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, [loadUser]);
 
   return (
@@ -82,7 +128,10 @@ function App() {
         <Route path="/campus/mis-cursos" element={<MyCoursesPage />} />
         <Route path="/campus/curso/:courseId" element={<CourseLearningPage />} />
         <Route path="/campus/cursos/:slug" element={<CourseLearningPage />} />
+        <Route path="/campus/lecciones/:lessonId" element={<LessonView />} />
         <Route path="/campus/module/:moduleId/test" element={<ModuleTestPage />} />
+        <Route path="/campus/mi-progreso" element={<GamificationDashboard />} />
+        <Route path="/campus/ejercicios" element={<ExercisesPage />} />
         <Route path="/campus/perfil" element={<ProfilePage />} />
       </Route>
     </Routes>

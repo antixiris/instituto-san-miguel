@@ -7,6 +7,7 @@ import {
   submitGameExercise,
   getMySubmissions,
   getAllSubmissions,
+  getMyExercises,
 } from '../controllers/gameExercises.controller';
 import { authenticate } from '../middleware/auth';
 
@@ -14,6 +15,9 @@ const router = Router();
 
 // Todas las rutas requieren autenticación
 router.use(authenticate);
+
+// Obtener todos los ejercicios gamificados del estudiante con progreso
+router.get('/game-exercises/my-exercises', getMyExercises);
 
 // Obtener ejercicio gamificado de una lección
 router.get('/lessons/:lessonId/game-exercise', getGameExerciseByLesson);

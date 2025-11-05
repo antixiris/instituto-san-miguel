@@ -258,6 +258,1019 @@ export default ListaUsuarios;
 
 ---
 
+## 🤖 Claude Code en Acción: Tu asistente para integración con APIs
+
+Ahora que entiendes los fundamentos de las APIs, `useEffect`, y `fetch`, es momento de acelerar tu desarrollo con Claude Code. Integrar APIs puede ser repetitivo y propenso a errores: estados de carga, manejo de errores, tipado TypeScript, cancelación de requests. Claude Code automatiza estos patrones comunes y te ayuda a escribir código robusto y profesional en minutos.
+
+### ¿Por qué usar Claude Code para APIs?
+
+**El problema sin Claude Code**:
+- Escribir manualmente estados de loading, error, y data para cada API
+- Recordar la sintaxis exacta de `useEffect` y sus dependencias
+- Configurar correctamente tipos TypeScript para respuestas de API
+- Implementar manejo de errores consistente
+- Recordar limpiar (cleanup) requests cuando el componente se desmonta
+
+**Con Claude Code**:
+- Generas custom hooks completos con manejo de estados en segundos
+- Obtienes código con TypeScript correctamente tipado
+- Implementas cancelación de requests automáticamente
+- Sigues mejores prácticas de la industria sin memorizarlas
+
+---
+
+### Prompt 1: Configurar cliente HTTP con axios
+
+**Contexto**: `fetch` es suficiente para casos simples, pero aplicaciones profesionales usan bibliotecas como `axios` que ofrecen interceptores, mejor manejo de errores, y cancelación de requests más simple.
+
+**Prompt para Claude Code**:
+```
+Instala axios en mi proyecto React y crea un archivo src/api/client.ts
+que configure una instancia de axios con:
+- baseURL hacia JSONPlaceholder API
+- timeout de 10 segundos
+- interceptor para logging de requests en desarrollo
+- manejo de errores centralizado
+```
+
+**Lo que Claude Code hará por ti**:
+1. Ejecutará `npm install axios` automáticamente
+2. Creará la estructura de carpetas `src/api/`
+3. Generará `client.ts` con configuración profesional
+4. Añadirá tipos TypeScript apropiados
+5. Implementará interceptores para debugging
+
+**Código generado** (`src/api/client.ts`):
+```typescript
+import axios, { AxiosError, AxiosResponse } from 'axios';
+
+// Configurar instancia base de axios
+const apiClient = axios.create({
+  baseURL: 'https://jsonplaceholder.typicode.com',
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Interceptor de request (logging en desarrollo)
+apiClient.interceptors.request.use(
+  (config) => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🚀 Request:', config.method?.toUpperCase(), config.url);
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Interceptor de response (logging y manejo de errores)
+apiClient.interceptors.response.use(
+  (response: AxiosResponse) => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('✅ Response:', response.status, response.config.url);
+    }
+    return response;
+  },
+  (error: AxiosError) => {
+    // Manejo centralizado de errores
+    if (error.response) {
+      // Error de respuesta del servidor (4xx, 5xx)
+      console.error('❌ Server Error:', error.response.status, error.response.data);
+    } else if (error.request) {
+      // Request enviado pero sin respuesta (timeout, network error)
+      console.error('❌ Network Error:', error.message);
+    } else {
+      // Error al configurar el request
+      console.error('❌ Request Error:', error.message);
+    }
+    return Promise.reject(error);
+  }
+);
+
+export default apiClient;
+```
+
+**Por qué es mejor**:
+- Configuración centralizada: cambias la `baseURL` en un solo lugar
+- Debugging automático: ves todos los requests en consola durante desarrollo
+- Manejo de errores consistente: todos los errores se procesan igual
+- Timeout automático: previene requests colgados indefinidamente
+
+---
+
+### Prompt 2: Crear custom hook useApi con gestión completa de estados
+
+**Contexto**: Repetir el patrón de estados `loading`, `error`, y `data` en cada componente es tedioso y propenso a errores. Un custom hook reutilizable centraliza esta lógica.
+
+**Prompt para Claude Code**:
+```
+Crea un custom hook src/hooks/useApi.ts que:
+- Reciba una función que retorna una Promise
+- Maneje estados de loading, error, data
+- Ejecute la función automáticamente al montar
+- Permita refetch manual
+- Incluya cleanup para cancelar requests
+- Esté completamente tipado con TypeScript generics
+```
+
+**Lo que Claude Code generará**:
+
+**Código generado** (`src/hooks/useApi.ts`):
+```typescript
+import { useState, useEffect, useCallback } from 'react';
+
+interface UseApiState<T> {
+  data: T | null;
+  loading: boolean;
+  error: string | null;
+}
+
+interface UseApiReturn<T> extends UseApiState<T> {
+  refetch: () => void;
+}
+
+/**
+ * Hook personalizado para consumir APIs con gestión automática de estados
+ * @param apiFn Función que retorna una Promise con los datos de la API
+ * @returns Estado (data, loading, error) y función refetch para recargar
+ */
+function useApi<T>(apiFn: () => Promise<T>): UseApiReturn<T> {
+  const [state, setState] = useState<UseApiState<T>>({
+    data: null,
+    loading: true,
+    error: null,
+  });
+
+  const fetchData = useCallback(async () => {
+    setState({ data: null, loading: true, error: null });
+
+    try {
+      const result = await apiFn();
+      setState({ data: result, loading: false, error: null });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+      setState({ data: null, loading: false, error: errorMessage });
+    }
+  }, [apiFn]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadData = async () => {
+      try {
+        const result = await apiFn();
+        if (!cancelled) {
+          setState({ data: result, loading: false, error: null });
+        }
+      } catch (err) {
+        if (!cancelled) {
+          const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+          setState({ data: null, loading: false, error: errorMessage });
+        }
+      }
+    };
+
+    loadData();
+
+    // Cleanup: marca como cancelado si el componente se desmonta
+    return () => {
+      cancelled = true;
+    };
+  }, [apiFn]);
+
+  return {
+    ...state,
+    refetch: fetchData,
+  };
+}
+
+export default useApi;
+```
+
+**Ejemplo de uso**:
+```typescript
+import useApi from './hooks/useApi';
+import apiClient from './api/client';
+
+interface User {
+  id: number;
+  name: string;
+  email: string;
+}
+
+function ListaUsuarios() {
+  const { data, loading, error, refetch } = useApi<User[]>(
+    () => apiClient.get('/users').then(res => res.data)
+  );
+
+  if (loading) return <p>Cargando usuarios...</p>;
+  if (error) return <p>Error: {error}</p>;
+
+  return (
+    <div>
+      <button onClick={refetch}>Recargar</button>
+      <ul>
+        {data?.map(user => <li key={user.id}>{user.name}</li>)}
+      </ul>
+    </div>
+  );
+}
+```
+
+**Ventajas**:
+- Reutilizable: Funciona con cualquier función que retorne Promise
+- TypeScript seguro: `<User[]>` garantiza tipado correcto
+- Cancelación integrada: Evita actualizaciones de estado en componentes desmontados
+- Refetch fácil: Botón de recarga implementado con una función
+
+---
+
+### Prompt 3: Implementar custom hook para paginación
+
+**Contexto**: Muchas APIs retornan datos paginados. Implementar controles de paginación manualmente es repetitivo.
+
+**Prompt para Claude Code**:
+```
+Crea un custom hook src/hooks/usePagination.ts que:
+- Maneje página actual y tamaño de página
+- Provea funciones nextPage, prevPage, goToPage
+- Calcule páginas totales basado en totalItems
+- Incluya validación para no ir a páginas inválidas
+- Esté tipado con TypeScript
+```
+
+**Código generado** (`src/hooks/usePagination.ts`):
+```typescript
+import { useState, useMemo } from 'react';
+
+interface UsePaginationProps {
+  totalItems: number;
+  itemsPerPage?: number;
+  initialPage?: number;
+}
+
+interface UsePaginationReturn {
+  currentPage: number;
+  totalPages: number;
+  nextPage: () => void;
+  prevPage: () => void;
+  goToPage: (page: number) => void;
+  canGoNext: boolean;
+  canGoPrev: boolean;
+  startIndex: number;
+  endIndex: number;
+}
+
+function usePagination({
+  totalItems,
+  itemsPerPage = 10,
+  initialPage = 1,
+}: UsePaginationProps): UsePaginationReturn {
+  const [currentPage, setCurrentPage] = useState(initialPage);
+
+  // Calcular páginas totales
+  const totalPages = useMemo(() => {
+    return Math.ceil(totalItems / itemsPerPage);
+  }, [totalItems, itemsPerPage]);
+
+  // Calcular índices para slice del array
+  const startIndex = useMemo(() => {
+    return (currentPage - 1) * itemsPerPage;
+  }, [currentPage, itemsPerPage]);
+
+  const endIndex = useMemo(() => {
+    return startIndex + itemsPerPage;
+  }, [startIndex, itemsPerPage]);
+
+  // Funciones de navegación con validación
+  const nextPage = () => {
+    setCurrentPage((prev) => Math.min(prev + 1, totalPages));
+  };
+
+  const prevPage = () => {
+    setCurrentPage((prev) => Math.max(prev - 1, 1));
+  };
+
+  const goToPage = (page: number) => {
+    const pageNumber = Math.max(1, Math.min(page, totalPages));
+    setCurrentPage(pageNumber);
+  };
+
+  // Flags de disponibilidad
+  const canGoNext = currentPage < totalPages;
+  const canGoPrev = currentPage > 1;
+
+  return {
+    currentPage,
+    totalPages,
+    nextPage,
+    prevPage,
+    goToPage,
+    canGoNext,
+    canGoPrev,
+    startIndex,
+    endIndex,
+  };
+}
+
+export default usePagination;
+```
+
+**Ejemplo de uso combinado** (useApi + usePagination):
+```typescript
+import useApi from './hooks/useApi';
+import usePagination from './hooks/usePagination';
+import apiClient from './api/client';
+
+interface Post {
+  id: number;
+  title: string;
+  body: string;
+}
+
+function PostsPaginados() {
+  const { data: posts, loading, error } = useApi<Post[]>(
+    () => apiClient.get('/posts').then(res => res.data)
+  );
+
+  const {
+    currentPage,
+    totalPages,
+    nextPage,
+    prevPage,
+    canGoNext,
+    canGoPrev,
+    startIndex,
+    endIndex,
+  } = usePagination({
+    totalItems: posts?.length || 0,
+    itemsPerPage: 10,
+  });
+
+  if (loading) return <p>Cargando...</p>;
+  if (error) return <p>Error: {error}</p>;
+
+  const postsPaginados = posts?.slice(startIndex, endIndex);
+
+  return (
+    <div>
+      <h2>Posts (Página {currentPage} de {totalPages})</h2>
+
+      {postsPaginados?.map(post => (
+        <div key={post.id}>
+          <h3>{post.title}</h3>
+          <p>{post.body}</p>
+        </div>
+      ))}
+
+      <div>
+        <button onClick={prevPage} disabled={!canGoPrev}>
+          Anterior
+        </button>
+        <span>Página {currentPage} de {totalPages}</span>
+        <button onClick={nextPage} disabled={!canGoNext}>
+          Siguiente
+        </button>
+      </div>
+    </div>
+  );
+}
+```
+
+---
+
+### Workflow Completo: App de gestión de usuarios con API real
+
+Ahora vamos a crear una aplicación completa que consume JSONPlaceholder API, con todas las características profesionales: cliente HTTP configurado, custom hooks, paginación, búsqueda, y manejo de errores.
+
+**Prompt para Claude Code**:
+```
+Crea una aplicación completa de gestión de usuarios que:
+1. Use axios con cliente HTTP configurado
+2. Implemente useApi para cargar usuarios
+3. Incluya barra de búsqueda en tiempo real (filtro local)
+4. Tenga paginación funcional con 6 usuarios por página
+5. Muestre detalles de usuario en modal al hacer clic
+6. Use TypeScript para todo
+7. Tenga manejo completo de loading y errores
+8. Incluya botón de refetch
+
+Estructura:
+- src/api/client.ts (cliente axios)
+- src/hooks/useApi.ts (hook de API)
+- src/hooks/usePagination.ts (hook de paginación)
+- src/types/User.ts (tipos)
+- src/components/UserCard.tsx (tarjeta de usuario)
+- src/components/UserModal.tsx (modal de detalles)
+- src/components/UserList.tsx (lista principal)
+- src/App.tsx (app principal)
+```
+
+**Claude Code generará todos los archivos automáticamente**. Aquí están los archivos principales:
+
+**Archivo: `src/types/User.ts`**
+```typescript
+export interface User {
+  id: number;
+  name: string;
+  username: string;
+  email: string;
+  address: {
+    street: string;
+    suite: string;
+    city: string;
+    zipcode: string;
+  };
+  phone: string;
+  website: string;
+  company: {
+    name: string;
+    catchPhrase: string;
+    bs: string;
+  };
+}
+```
+
+**Archivo: `src/components/UserCard.tsx`**
+```typescript
+import { User } from '../types/User';
+
+interface UserCardProps {
+  user: User;
+  onClick: () => void;
+}
+
+function UserCard({ user, onClick }: UserCardProps) {
+  return (
+    <div
+      onClick={onClick}
+      className="bg-white rounded-lg shadow-md p-6 hover:shadow-xl transition-shadow cursor-pointer"
+    >
+      <div className="flex items-center mb-4">
+        <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-xl">
+          {user.name.charAt(0)}
+        </div>
+        <div className="ml-4">
+          <h3 className="text-lg font-bold text-gray-800">{user.name}</h3>
+          <p className="text-sm text-gray-500">@{user.username}</p>
+        </div>
+      </div>
+
+      <div className="space-y-2 text-sm">
+        <p className="text-gray-600">
+          <span className="font-semibold">Email:</span> {user.email}
+        </p>
+        <p className="text-gray-600">
+          <span className="font-semibold">Ciudad:</span> {user.address.city}
+        </p>
+        <p className="text-gray-600">
+          <span className="font-semibold">Empresa:</span> {user.company.name}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+export default UserCard;
+```
+
+**Archivo: `src/components/UserModal.tsx`**
+```typescript
+import { User } from '../types/User';
+
+interface UserModalProps {
+  user: User | null;
+  onClose: () => void;
+}
+
+function UserModal({ user, onClose }: UserModalProps) {
+  if (!user) return null;
+
+  return (
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-lg p-8 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex justify-between items-start mb-6">
+          <h2 className="text-3xl font-bold text-gray-800">{user.name}</h2>
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700 text-2xl"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <h3 className="text-sm font-semibold text-gray-500 uppercase">Información de contacto</h3>
+            <p className="text-gray-800">Usuario: @{user.username}</p>
+            <p className="text-gray-800">Email: {user.email}</p>
+            <p className="text-gray-800">Teléfono: {user.phone}</p>
+            <p className="text-gray-800">Sitio web: {user.website}</p>
+          </div>
+
+          <div>
+            <h3 className="text-sm font-semibold text-gray-500 uppercase">Dirección</h3>
+            <p className="text-gray-800">{user.address.street}, {user.address.suite}</p>
+            <p className="text-gray-800">{user.address.city} - {user.address.zipcode}</p>
+          </div>
+
+          <div>
+            <h3 className="text-sm font-semibold text-gray-500 uppercase">Empresa</h3>
+            <p className="text-gray-800 font-semibold">{user.company.name}</p>
+            <p className="text-gray-600 italic">"{user.company.catchPhrase}"</p>
+            <p className="text-gray-600 text-sm">{user.company.bs}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default UserModal;
+```
+
+**Archivo: `src/components/UserList.tsx`**
+```typescript
+import { useState, useMemo } from 'react';
+import useApi from '../hooks/useApi';
+import usePagination from '../hooks/usePagination';
+import apiClient from '../api/client';
+import { User } from '../types/User';
+import UserCard from './UserCard';
+import UserModal from './UserModal';
+
+function UserList() {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+
+  // Cargar usuarios de la API
+  const { data: users, loading, error, refetch } = useApi<User[]>(
+    () => apiClient.get('/users').then(res => res.data)
+  );
+
+  // Filtrar usuarios según término de búsqueda
+  const filteredUsers = useMemo(() => {
+    if (!users) return [];
+    if (!searchTerm) return users;
+
+    return users.filter(user =>
+      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.company.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [users, searchTerm]);
+
+  // Paginación
+  const {
+    currentPage,
+    totalPages,
+    nextPage,
+    prevPage,
+    canGoNext,
+    canGoPrev,
+    startIndex,
+    endIndex,
+  } = usePagination({
+    totalItems: filteredUsers.length,
+    itemsPerPage: 6,
+  });
+
+  const paginatedUsers = filteredUsers.slice(startIndex, endIndex);
+
+  // Estados de carga y error
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-xl text-gray-600">Cargando usuarios...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-md mx-auto mt-20 bg-red-50 border-l-4 border-red-500 p-6 rounded-lg">
+        <h3 className="text-red-800 font-bold text-lg mb-2">Error al cargar usuarios</h3>
+        <p className="text-red-600 mb-4">{error}</p>
+        <button
+          onClick={refetch}
+          className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded"
+        >
+          Reintentar
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 py-8">
+      {/* Header con búsqueda */}
+      <div className="mb-8">
+        <div className="flex justify-between items-center mb-4">
+          <h1 className="text-4xl font-bold text-gray-800">Gestión de Usuarios</h1>
+          <button
+            onClick={refetch}
+            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded flex items-center"
+          >
+            ↻ Recargar
+          </button>
+        </div>
+
+        <input
+          type="text"
+          placeholder="Buscar por nombre, email o empresa..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+
+        <p className="text-gray-600 mt-2">
+          Mostrando {paginatedUsers.length} de {filteredUsers.length} usuarios
+        </p>
+      </div>
+
+      {/* Grid de usuarios */}
+      {paginatedUsers.length === 0 ? (
+        <div className="text-center py-12">
+          <p className="text-xl text-gray-500">No se encontraron usuarios</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          {paginatedUsers.map(user => (
+            <UserCard
+              key={user.id}
+              user={user}
+              onClick={() => setSelectedUser(user)}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Controles de paginación */}
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center space-x-4">
+          <button
+            onClick={prevPage}
+            disabled={!canGoPrev}
+            className="bg-gray-300 hover:bg-gray-400 disabled:bg-gray-200 disabled:cursor-not-allowed px-4 py-2 rounded"
+          >
+            ← Anterior
+          </button>
+          <span className="text-gray-700">
+            Página {currentPage} de {totalPages}
+          </span>
+          <button
+            onClick={nextPage}
+            disabled={!canGoNext}
+            className="bg-gray-300 hover:bg-gray-400 disabled:bg-gray-200 disabled:cursor-not-allowed px-4 py-2 rounded"
+          >
+            Siguiente →
+          </button>
+        </div>
+      )}
+
+      {/* Modal de detalles */}
+      <UserModal user={selectedUser} onClose={() => setSelectedUser(null)} />
+    </div>
+  );
+}
+
+export default UserList;
+```
+
+**Archivo: `src/App.tsx`**
+```typescript
+import UserList from './components/UserList';
+
+function App() {
+  return <UserList />;
+}
+
+export default App;
+```
+
+**Características implementadas**:
+- ✅ Cliente HTTP configurado con axios
+- ✅ Custom hook useApi con loading/error/data
+- ✅ Búsqueda en tiempo real (filtrado local)
+- ✅ Paginación funcional con custom hook
+- ✅ Modal de detalles de usuario
+- ✅ TypeScript completo con interfaces
+- ✅ Manejo de estados de carga y error
+- ✅ Botón de refetch
+- ✅ UI responsive con grid adaptativo
+- ✅ Indicador visual de resultados
+
+**Tiempo de desarrollo**:
+- Sin Claude Code: 3-4 horas (escribir todo manualmente, debuggear, tipar)
+- Con Claude Code: 10-15 minutos (prompt + ajustes menores)
+
+---
+
+### Errores comunes al trabajar con APIs (y cómo Claude Code los previene)
+
+#### Error #1: No manejar estados de carga
+
+**Código problemático**:
+```typescript
+// ❌ Sin estado de carga
+function Usuarios() {
+  const [usuarios, setUsuarios] = useState([]);
+
+  useEffect(() => {
+    fetch('https://api.example.com/users')
+      .then(res => res.json())
+      .then(data => setUsuarios(data));
+  }, []);
+
+  return (
+    <ul>
+      {usuarios.map(u => <li key={u.id}>{u.name}</li>)}
+    </ul>
+  );
+}
+```
+
+**Problemas**:
+- La lista aparece vacía inicialmente sin indicación de que está cargando
+- Los usuarios no saben si la app funciona o está rota
+- Mala experiencia de usuario
+
+**Con Claude Code** (generado automáticamente):
+```typescript
+// ✅ Con estado de carga
+function Usuarios() {
+  const { data: usuarios, loading, error } = useApi<User[]>(
+    () => apiClient.get('/users').then(res => res.data)
+  );
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        <p className="ml-4">Cargando usuarios...</p>
+      </div>
+    );
+  }
+
+  if (error) return <div className="text-red-500">Error: {error}</div>;
+
+  return (
+    <ul>
+      {usuarios?.map(u => <li key={u.id}>{u.name}</li>)}
+    </ul>
+  );
+}
+```
+
+**Por qué es mejor**:
+- Feedback visual inmediato con spinner animado
+- Manejo de errores incluido
+- Experiencia de usuario profesional
+
+---
+
+#### Error #2: Memory leaks por no cancelar requests
+
+**Código problemático**:
+```typescript
+// ❌ Sin cancelación de requests
+function Perfil({ userId }: { userId: number }) {
+  const [perfil, setPerfil] = useState(null);
+
+  useEffect(() => {
+    fetch(`https://api.example.com/users/${userId}`)
+      .then(res => res.json())
+      .then(data => setPerfil(data));
+  }, [userId]);
+
+  return <div>{perfil?.name}</div>;
+}
+
+// Si el componente se desmonta antes de que termine el fetch,
+// intentará actualizar el estado de un componente desmontado → Warning!
+```
+
+**Problemas**:
+- Warning en consola: "Can't perform a React state update on an unmounted component"
+- Memory leak si hay muchos requests cancelados
+- Comportamiento impredecible
+
+**Con Claude Code** (cleanup automático):
+```typescript
+// ✅ Con cancelación de requests
+function useApi<T>(apiFn: () => Promise<T>) {
+  const [state, setState] = useState({ data: null, loading: true, error: null });
+
+  useEffect(() => {
+    let cancelled = false;  // ← Flag de cancelación
+
+    const loadData = async () => {
+      try {
+        const result = await apiFn();
+        if (!cancelled) {  // ← Solo actualiza si NO está cancelado
+          setState({ data: result, loading: false, error: null });
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setState({ data: null, loading: false, error: err.message });
+        }
+      }
+    };
+
+    loadData();
+
+    return () => {
+      cancelled = true;  // ← Cleanup: marca como cancelado
+    };
+  }, [apiFn]);
+
+  return state;
+}
+```
+
+**Por qué es mejor**:
+- No intenta actualizar estado de componentes desmontados
+- Previene warnings y memory leaks
+- Patrón estándar de la industria
+
+---
+
+#### Error #3: Hacer fetch directamente en el render (bucle infinito)
+
+**Código problemático**:
+```typescript
+// ❌ BUCLE INFINITO - NO HAGAS ESTO
+function Usuarios() {
+  const [usuarios, setUsuarios] = useState([]);
+
+  // ¡ERROR! Fetch en el render crea un bucle infinito
+  fetch('https://api.example.com/users')
+    .then(res => res.json())
+    .then(data => setUsuarios(data));  // setState → re-render → fetch → setState → ...
+
+  return <ul>{usuarios.map(u => <li key={u.id}>{u.name}</li>)}</ul>;
+}
+```
+
+**Problemas**:
+- Fetch se ejecuta en cada render
+- Cada fetch actualiza el estado
+- Cada actualización de estado causa un re-render
+- Bucle infinito → navegador se congela
+
+**Con Claude Code** (useEffect automático):
+```typescript
+// ✅ Fetch en useEffect (se ejecuta solo al montar)
+function Usuarios() {
+  const { data: usuarios, loading, error } = useApi<User[]>(
+    () => apiClient.get('/users').then(res => res.data)
+  );
+
+  if (loading) return <p>Cargando...</p>;
+  if (error) return <p>Error: {error}</p>;
+
+  return <ul>{usuarios?.map(u => <li key={u.id}>{u.name}</li>)}</ul>;
+}
+```
+
+**Por qué es mejor**:
+- El hook `useApi` usa `useEffect` internamente con dependencias correctas
+- Fetch se ejecuta solo una vez al montar
+- No hay bucles infinitos
+
+---
+
+#### Error #4: No tipar respuestas de API con TypeScript
+
+**Código problemático**:
+```typescript
+// ❌ Sin tipos - propenso a errores
+function Usuarios() {
+  const [usuarios, setUsuarios] = useState([]);  // any[]
+
+  useEffect(() => {
+    fetch('https://api.example.com/users')
+      .then(res => res.json())
+      .then(data => setUsuarios(data));  // ¿Qué contiene data?
+  }, []);
+
+  return (
+    <ul>
+      {usuarios.map(u => (
+        <li key={u.id}>
+          {u.nombre}  {/* ¿Es 'nombre' o 'name'? TypeScript no lo sabe */}
+        </li>
+      ))}
+    </ul>
+  );
+}
+```
+
+**Problemas**:
+- No hay autocompletado
+- Errores solo se descubren en runtime
+- Refactorizar es peligroso
+
+**Con Claude Code** (tipado completo):
+```typescript
+// ✅ Completamente tipado
+interface User {
+  id: number;
+  name: string;  // ← TypeScript sabe que es 'name', no 'nombre'
+  email: string;
+}
+
+function Usuarios() {
+  const { data: usuarios, loading, error } = useApi<User[]>(  // ← Tipado genérico
+    () => apiClient.get<User[]>('/users').then(res => res.data)
+  );
+
+  if (loading) return <p>Cargando...</p>;
+  if (error) return <p>Error: {error}</p>;
+
+  return (
+    <ul>
+      {usuarios?.map(u => (
+        <li key={u.id}>
+          {u.name}  {/* ✅ Autocompletado correcto, error si escribes u.nombre */}
+        </li>
+      ))}
+    </ul>
+  );
+}
+```
+
+**Por qué es mejor**:
+- Autocompletado inteligente en VS Code
+- Errores de tipos detectados antes de ejecutar
+- Refactorización segura
+
+---
+
+### Tabla comparativa: Con vs. Sin Claude Code
+
+| Aspecto | Sin Claude Code | Con Claude Code |
+|---------|-----------------|-----------------|
+| **Tiempo setup API** | 30-45 min (instalar axios, configurar cliente, crear interceptores) | 2 min (prompt → código generado) |
+| **Custom hooks** | 1-2 horas (escribir, debuggear, tipar correctamente) | 5 min (prompt → hook completo con tipos) |
+| **Manejo de errores** | Implementar manualmente en cada componente | Centralizado automáticamente en interceptores |
+| **Cancelación de requests** | Fácil de olvidar → memory leaks | Incluido por defecto en custom hooks |
+| **TypeScript** | Escribir interfaces manualmente, fácil cometer errores | Interfaces generadas correctamente |
+| **Paginación** | Calcular índices manualmente, validar límites | Hook completo con validación integrada |
+| **Estados de carga** | Repetir patrón loading/error/data en cada componente | Hook reutilizable en todos los componentes |
+| **Búsqueda/filtrado** | Implementar lógica de filtrado desde cero | Generado con useMemo para rendimiento |
+| **Debugging** | Console.log manual en cada request | Interceptores con logging automático |
+| **Código duplicado** | Alto (lógica de API repetida en múltiples archivos) | Mínimo (hooks reutilizables) |
+| **Consistencia** | Cada desarrollador implementa diferente | Patrones estándar en todo el código |
+| **Curva de aprendizaje** | Memorizar sintaxis de fetch, useEffect, cleanup | Describir lo que necesitas en lenguaje natural |
+
+**Tiempo total desarrollo app completa**:
+- Sin Claude Code: 4-5 horas
+- Con Claude Code: 15-20 minutos (80-85% más rápido)
+
+---
+
+### Mejores prácticas al trabajar con APIs usando Claude Code
+
+1. **Siempre pide tipado TypeScript completo**: Incluye "con TypeScript" en tus prompts para obtener interfaces correctas.
+
+2. **Solicita manejo de errores centralizado**: Pide interceptores de axios para logging y manejo de errores consistente.
+
+3. **Usa custom hooks para lógica reutilizable**: En lugar de repetir código, pide hooks como `useApi`, `usePagination`, `useSearch`.
+
+4. **Implementa loading skeletons profesionales**: En lugar de "Cargando...", pide spinners animados o skeleton screens.
+
+5. **Añade capacidades de refetch**: Siempre útil para recargar datos sin recargar la página.
+
+6. **Considera optimistic updates**: Para operaciones como crear/editar, actualiza la UI antes de que la API responda (mejor UX).
+
+7. **Implementa debouncing en búsquedas**: Si buscas contra una API real (no filtrado local), usa debounce para no hacer requests en cada tecla.
+
+**Prompt avanzado ejemplo**:
+```
+Crea un sistema completo de búsqueda de productos con:
+- Debouncing de 500ms en el input de búsqueda
+- Request a la API solo cuando el usuario deja de escribir
+- Skeleton loading mientras busca
+- Infinite scroll para cargar más resultados
+- Caché de resultados previos con React Query
+- Cancelación de requests anteriores si hay uno nuevo
+```
+
+---
+
 ## Práctica guiada: Galería de posts de blog
 
 Vamos a crear un componente que muestre posts de un blog, con título, autor y contenido. Incluiremos manejo de carga y errores.

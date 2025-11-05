@@ -15,6 +15,23 @@
 @tailwind utilities;
 
 /* =====================================================
+   ROLE-BASED DYNAMIC COLORS (Safelist for Tailwind)
+   ===================================================== */
+@layer components {
+  /* Admin colors */
+  .bg-red-600, .text-red-600, .bg-red-50, .text-red-700, .border-red-200 {}
+  .bg-red-500, .text-red-500 {}
+
+  /* Professor colors */
+  .bg-blue-600, .text-blue-600, .bg-blue-50, .text-blue-700, .border-blue-200 {}
+  .bg-blue-500, .text-blue-500 {}
+
+  /* Student colors */
+  .bg-green-600, .text-green-600, .bg-green-50, .text-green-700, .border-green-200 {}
+  .bg-green-500, .text-green-500 {}
+}
+
+/* =====================================================
    CSS CUSTOM PROPERTIES
    ===================================================== */
 :root {

@@ -2,7 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { X, GraduationCap, ChevronLeft, ChevronRight } from 'lucide-react';
 import clsx from 'clsx';
 import { useAuthStore } from '../../store/authStore';
-import { getNavigationByRole, getRoleColor } from '../../config/navigation';
+import { getNavigationByRole, getRoleClasses } from '../../config/navigation';
 
 interface CampusSidebarProps {
   isOpen: boolean;
@@ -17,6 +17,7 @@ export default function CampusSidebar({ isOpen, onClose, collapsed = false, onTo
 
   // Obtener navegación según el rol del usuario
   const navigationGroups = user?.role ? getNavigationByRole(user.role) : [];
+  const roleClasses = getRoleClasses(user?.role);
 
   return (
     <>
@@ -44,7 +45,7 @@ export default function CampusSidebar({ isOpen, onClose, collapsed = false, onTo
           )}>
             <GraduationCap className={clsx(
               'w-8 h-8 transition-colors flex-shrink-0',
-              user?.role && `text-${getRoleColor(user.role)}`
+              roleClasses.iconColor
             )} />
             {!collapsed && (
               <span className="font-display font-bold text-lg text-neutral-900 dark:text-neutral-100 whitespace-nowrap">
@@ -58,10 +59,11 @@ export default function CampusSidebar({ isOpen, onClose, collapsed = false, onTo
             <div className="mb-6">
               <div className={clsx(
                 'inline-flex items-center px-3 py-1 rounded-full text-xs font-medium',
-                `bg-${getRoleColor(user.role, 'bg')} text-${getRoleColor(user.role, 'text')}`
+                roleClasses.bgLight,
+                roleClasses.textDark
               )}>
                 {user.role === 'ADMIN' && 'Administrador'}
-                {user.role === 'INSTRUCTOR' && 'Profesor'}
+                {(user.role === 'INSTRUCTOR' || user.role === 'PROFESOR') && 'Profesor'}
                 {user.role === 'STUDENT' && 'Alumno'}
               </div>
             </div>
@@ -109,13 +111,34 @@ export default function CampusSidebar({ isOpen, onClose, collapsed = false, onTo
                       <Link
                         key={item.to}
                         to={item.to}
-                        onClick={onClose}
+                        onClick={(e) => {
+                          const tokenBefore = localStorage.getItem('token');
+                          const userBefore = localStorage.getItem('user');
+
+                          console.log('🖱️ SIDEBAR LINK CLICKED TO:', item.to);
+                          console.log('📦 localStorage BEFORE click:', {
+                            hasToken: !!tokenBefore,
+                            hasUser: !!userBefore,
+                            tokenLength: tokenBefore?.length,
+                            userLength: userBefore?.length
+                          });
+
+                          // Verificar localStorage después de un micro-delay
+                          setTimeout(() => {
+                            console.log('📦 localStorage AFTER 10ms:', {
+                              hasToken: !!localStorage.getItem('token'),
+                              hasUser: !!localStorage.getItem('user')
+                            });
+                          }, 10);
+
+                          onClose();
+                        }}
                         title={collapsed ? item.label : undefined}
                         className={clsx(
                           'flex items-center transition-all duration-200 rounded-lg',
                           collapsed ? 'justify-center px-2 py-2.5' : 'justify-between px-4 py-2.5',
                           isActive
-                            ? `bg-${getRoleColor(user?.role || 'STUDENT', 'bg')} text-${getRoleColor(user?.role || 'STUDENT', 'primary')} dark:bg-${getRoleColor(user?.role || 'STUDENT', 'primary')} dark:bg-opacity-10 font-medium`
+                            ? `${roleClasses.activeBg} ${roleClasses.activeText} font-medium`
                             : 'text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800'
                         )}
                       >
@@ -133,8 +156,8 @@ export default function CampusSidebar({ isOpen, onClose, collapsed = false, onTo
                         {/* Badge opcional (para contadores) */}
                         {!collapsed && item.badge && item.badge > 0 && (
                           <span className={clsx(
-                            'px-2 py-0.5 text-xs font-semibold rounded-full',
-                            `bg-${getRoleColor(user?.role || 'STUDENT', 'primary')} text-white`
+                            'px-2 py-0.5 text-xs font-semibold rounded-full text-white',
+                            roleClasses.badgeBg
                           )}>
                             {item.badge}
                           </span>

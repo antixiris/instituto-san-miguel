@@ -46,6 +46,732 @@ El concepto de props es tan fundamental en React que absolutamente todas las apl
 
 ---
 
+## 🤖 Claude Code en Acción: Tu Asistente para Componentes Reutilizables
+
+Crear componentes reutilizables con props bien diseñadas es una de las habilidades más importantes en React. Claude Code puede ayudarte a diseñar interfaces de props robustas, extraer componentes de código repetitivo y crear sistemas de componentes escalables. En esta sección verás cómo Claude Code transforma la forma en que trabajas con componentes.
+
+### Por qué Claude Code brilla con componentes
+
+Diseñar componentes reutilizables requiere:
+- **Identificar patrones repetitivos** en tu código que puedan extraerse
+- **Definir interfaces TypeScript claras** para props
+- **Balancear flexibilidad y simplicidad** (ni muy genérico ni muy específico)
+- **Documentar correctamente** qué props espera cada componente
+
+Claude Code sobresale en estas tareas porque puede analizar tu código completo, identificar oportunidades de reutilización y generar componentes con interfaces TypeScript bien diseñadas.
+
+### Prompt 1: Crear componente reutilizable con props
+
+**Tu situación**: Quieres crear un componente `Button` reutilizable con diferentes variantes (primario, secundario, peligro) y tamaños.
+
+**Prompt efectivo**:
+```
+Crea un componente Button reutilizable en TypeScript con estas características:
+- Props: label (string), variant ('primary' | 'secondary' | 'danger'), size ('small' | 'medium' | 'large'), onClick (función)
+- Estilos diferentes según variant y size
+- Accesibilidad: atributos ARIA apropiados
+- Export default del componente
+```
+
+**Código generado por Claude Code**:
+
+```tsx
+// src/components/Button.tsx
+interface ButtonProps {
+  label: string;
+  variant?: 'primary' | 'secondary' | 'danger';
+  size?: 'small' | 'medium' | 'large';
+  onClick: () => void;
+  disabled?: boolean;
+}
+
+function Button({
+  label,
+  variant = 'primary',
+  size = 'medium',
+  onClick,
+  disabled = false
+}: ButtonProps) {
+  // Estilos base
+  const baseStyles = 'font-semibold rounded transition-all duration-200 focus:outline-none focus:ring-2';
+
+  // Estilos por variante
+  const variantStyles = {
+    primary: 'bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-300',
+    secondary: 'bg-gray-200 hover:bg-gray-300 text-gray-800 focus:ring-gray-300',
+    danger: 'bg-red-600 hover:bg-red-700 text-white focus:ring-red-300'
+  };
+
+  // Estilos por tamaño
+  const sizeStyles = {
+    small: 'px-3 py-1 text-sm',
+    medium: 'px-4 py-2 text-base',
+    large: 'px-6 py-3 text-lg'
+  };
+
+  // Estilo cuando está deshabilitado
+  const disabledStyles = 'opacity-50 cursor-not-allowed';
+
+  const buttonClasses = `
+    ${baseStyles}
+    ${variantStyles[variant]}
+    ${sizeStyles[size]}
+    ${disabled ? disabledStyles : ''}
+  `.trim();
+
+  return (
+    <button
+      className={buttonClasses}
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      type="button"
+    >
+      {label}
+    </button>
+  );
+}
+
+export default Button;
+```
+
+**Por qué este código es excelente**:
+- Interface TypeScript completa con valores por defecto
+- Props opcionales bien marcadas (`variant?`, `size?`)
+- Uso de union types (`'primary' | 'secondary' | 'danger'`) para seguridad de tipos
+- Separación clara de estilos por responsabilidad
+- Accesibilidad con `aria-label`
+- Componente completamente reutilizable
+
+### Prompt 2: Refactorizar código para extraer componentes
+
+**Tu situación**: Tienes código repetitivo mostrando información de usuarios en varios lugares. Quieres extraerlo a un componente reutilizable.
+
+**Prompt efectivo**:
+```
+Analiza este código y extrae un componente UserCard reutilizable:
+
+<div className="user-container">
+  <img src={user.avatar} alt={user.name} />
+  <h3>{user.name}</h3>
+  <p>{user.email}</p>
+  <span>{user.role}</span>
+</div>
+
+Repito este patrón en 5 lugares diferentes. Crea:
+1. Interface User con las propiedades
+2. Componente UserCard que reciba un user como prop
+3. Estilos CSS-in-JS o className apropiadas
+```
+
+**Código generado por Claude Code**:
+
+```tsx
+// src/types/User.ts
+export interface User {
+  id: number;
+  name: string;
+  email: string;
+  avatar: string;
+  role: string;
+}
+
+// src/components/UserCard.tsx
+import { User } from '../types/User';
+
+interface UserCardProps {
+  user: User;
+  onUserClick?: (userId: number) => void;
+  showEmail?: boolean;
+}
+
+function UserCard({ user, onUserClick, showEmail = true }: UserCardProps) {
+  const handleClick = () => {
+    if (onUserClick) {
+      onUserClick(user.id);
+    }
+  };
+
+  return (
+    <div
+      className="user-card"
+      onClick={handleClick}
+      role={onUserClick ? 'button' : undefined}
+      tabIndex={onUserClick ? 0 : undefined}
+    >
+      <img
+        src={user.avatar}
+        alt={`Avatar de ${user.name}`}
+        className="user-avatar"
+      />
+      <div className="user-info">
+        <h3 className="user-name">{user.name}</h3>
+        {showEmail && <p className="user-email">{user.email}</p>}
+        <span className="user-role">{user.role}</span>
+      </div>
+    </div>
+  );
+}
+
+export default UserCard;
+
+// Estilos sugeridos para src/index.css
+/*
+.user-card {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 15px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.user-card:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  transform: translateY(-2px);
+}
+
+.user-avatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.user-info {
+  flex: 1;
+}
+
+.user-name {
+  margin: 0 0 5px 0;
+  color: #2c3e50;
+  font-size: 18px;
+}
+
+.user-email {
+  margin: 0 0 5px 0;
+  color: #7f8c8d;
+  font-size: 14px;
+}
+
+.user-role {
+  display: inline-block;
+  background: #3498db;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+}
+*/
+```
+
+**Mejoras que Claude Code añadió**:
+- Separó la interface `User` en archivo dedicado (reutilizable en toda la app)
+- Añadió prop opcional `onUserClick` para interactividad
+- Añadió prop `showEmail` para control de visibilidad
+- Mejoró accesibilidad con `role` y `tabIndex` cuando es clickeable
+- Generó estilos CSS completos y profesionales
+- Texto alternativo descriptivo en la imagen
+
+### Prompt 3: Diseñar sistema de componentes escalable
+
+**Tu situación**: Estás empezando un proyecto grande y necesitas un sistema de componentes consistente.
+
+**Prompt efectivo**:
+```
+Diseña un sistema básico de componentes UI para una biblioteca reutilizable:
+
+Componentes necesarios:
+1. Card (contenedor con header, body, footer opcionales)
+2. Badge (etiqueta pequeña con variantes de color)
+3. Avatar (imagen de perfil con tamaños y fallback)
+
+Requisitos:
+- TypeScript con interfaces claras
+- Props opcionales bien definidas
+- Estilos consistentes usando clases CSS
+- Todos exportados desde un index.ts
+```
+
+**Código generado por Claude Code**:
+
+```tsx
+// src/components/ui/Card.tsx
+interface CardProps {
+  children: React.ReactNode;
+  header?: React.ReactNode;
+  footer?: React.ReactNode;
+  className?: string;
+}
+
+export function Card({ children, header, footer, className = '' }: CardProps) {
+  return (
+    <div className={`card ${className}`}>
+      {header && <div className="card-header">{header}</div>}
+      <div className="card-body">{children}</div>
+      {footer && <div className="card-footer">{footer}</div>}
+    </div>
+  );
+}
+
+// src/components/ui/Badge.tsx
+interface BadgeProps {
+  children: React.ReactNode;
+  variant?: 'default' | 'success' | 'warning' | 'danger' | 'info';
+  size?: 'small' | 'medium' | 'large';
+}
+
+export function Badge({ children, variant = 'default', size = 'medium' }: BadgeProps) {
+  return (
+    <span className={`badge badge-${variant} badge-${size}`}>
+      {children}
+    </span>
+  );
+}
+
+// src/components/ui/Avatar.tsx
+interface AvatarProps {
+  src?: string;
+  alt: string;
+  size?: 'small' | 'medium' | 'large';
+  fallback?: string;
+}
+
+export function Avatar({ src, alt, size = 'medium', fallback }: AvatarProps) {
+  const [imageError, setImageError] = React.useState(false);
+
+  const handleError = () => {
+    setImageError(true);
+  };
+
+  if (imageError || !src) {
+    // Fallback: muestra iniciales o texto
+    const initials = fallback || alt.split(' ').map(n => n[0]).join('').substring(0, 2);
+    return (
+      <div className={`avatar avatar-${size} avatar-fallback`}>
+        {initials}
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className={`avatar avatar-${size}`}
+      onError={handleError}
+    />
+  );
+}
+
+// src/components/ui/index.ts
+export { Card } from './Card';
+export { Badge } from './Badge';
+export { Avatar } from './Avatar';
+
+// Uso del sistema:
+/*
+import { Card, Badge, Avatar } from './components/ui';
+
+function UserProfile() {
+  return (
+    <Card
+      header={
+        <div className="flex items-center gap-3">
+          <Avatar src="/user.jpg" alt="Juan Pérez" size="large" />
+          <h2>Juan Pérez</h2>
+        </div>
+      }
+      footer={<Badge variant="success">Activo</Badge>}
+    >
+      <p>Desarrollador Full Stack con 5 años de experiencia.</p>
+    </Card>
+  );
+}
+*/
+```
+
+**Ventajas del sistema generado**:
+- Componentes independientes pero con API consistente
+- Exportación centralizada desde `index.ts`
+- Manejo de errores en Avatar con fallback automático
+- Props `children` para máxima flexibilidad
+- Tamaños y variantes consistentes en todos los componentes
+
+### Workflow Completo: Crear Biblioteca de Componentes UI
+
+Vamos a crear un conjunto completo de componentes UI para una aplicación, desde cero hasta componentes listos para producción.
+
+**Paso 1: Planificar la estructura**
+
+```
+Crea una estructura de carpetas para una biblioteca de componentes UI:
+- src/components/ui/
+- Componentes: Button, Input, Card, Badge, Avatar, Alert
+- Cada componente en su archivo
+- Index.ts que exporte todos
+- Archivo types.ts con types compartidos
+```
+
+**Paso 2: Crear types compartidos**
+
+```tsx
+// src/components/ui/types.ts
+export type Size = 'small' | 'medium' | 'large';
+export type Variant = 'primary' | 'secondary' | 'success' | 'warning' | 'danger';
+export type Color = 'blue' | 'green' | 'yellow' | 'red' | 'gray';
+
+export interface BaseComponentProps {
+  className?: string;
+  id?: string;
+  'aria-label'?: string;
+}
+```
+
+**Paso 3: Implementar componente Input con validación**
+
+Prompt: "Crea componente Input con label, placeholder, validación y mensaje de error"
+
+```tsx
+// src/components/ui/Input.tsx
+import { BaseComponentProps, Size } from './types';
+
+interface InputProps extends BaseComponentProps {
+  label?: string;
+  placeholder?: string;
+  value: string;
+  onChange: (value: string) => void;
+  type?: 'text' | 'email' | 'password' | 'number';
+  size?: Size;
+  error?: string;
+  required?: boolean;
+  disabled?: boolean;
+}
+
+export function Input({
+  label,
+  placeholder,
+  value,
+  onChange,
+  type = 'text',
+  size = 'medium',
+  error,
+  required = false,
+  disabled = false,
+  className = '',
+  id,
+  'aria-label': ariaLabel
+}: InputProps) {
+  const inputId = id || `input-${label?.toLowerCase().replace(/\s/g, '-')}`;
+
+  return (
+    <div className={`input-wrapper ${className}`}>
+      {label && (
+        <label htmlFor={inputId} className="input-label">
+          {label}
+          {required && <span className="text-red-500 ml-1">*</span>}
+        </label>
+      )}
+      <input
+        id={inputId}
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        disabled={disabled}
+        required={required}
+        aria-label={ariaLabel || label}
+        aria-invalid={!!error}
+        aria-describedby={error ? `${inputId}-error` : undefined}
+        className={`input input-${size} ${error ? 'input-error' : ''}`}
+      />
+      {error && (
+        <p id={`${inputId}-error`} className="input-error-message">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+```
+
+**Paso 4: Crear componente Alert reutilizable**
+
+```tsx
+// src/components/ui/Alert.tsx
+import { BaseComponentProps, Variant } from './types';
+
+interface AlertProps extends BaseComponentProps {
+  children: React.ReactNode;
+  variant?: Variant;
+  dismissible?: boolean;
+  onDismiss?: () => void;
+  icon?: React.ReactNode;
+}
+
+export function Alert({
+  children,
+  variant = 'primary',
+  dismissible = false,
+  onDismiss,
+  icon,
+  className = ''
+}: AlertProps) {
+  return (
+    <div className={`alert alert-${variant} ${className}`} role="alert">
+      <div className="alert-content">
+        {icon && <span className="alert-icon">{icon}</span>}
+        <div className="alert-message">{children}</div>
+      </div>
+      {dismissible && (
+        <button
+          onClick={onDismiss}
+          className="alert-dismiss"
+          aria-label="Cerrar alerta"
+        >
+          ×
+        </button>
+      )}
+    </div>
+  );
+}
+```
+
+**Paso 5: Exportar todo desde index.ts**
+
+```tsx
+// src/components/ui/index.ts
+export { Button } from './Button';
+export { Input } from './Input';
+export { Card } from './Card';
+export { Badge } from './Badge';
+export { Avatar } from './Avatar';
+export { Alert } from './Alert';
+
+export type { Size, Variant, Color, BaseComponentProps } from './types';
+```
+
+**Paso 6: Usar la biblioteca en componentes reales**
+
+```tsx
+// src/pages/RegistroUsuario.tsx
+import { useState } from 'react';
+import { Card, Input, Button, Alert } from '../components/ui';
+
+function RegistroUsuario() {
+  const [nombre, setNombre] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showSuccess, setShowSuccess] = useState(false);
+
+  const validar = () => {
+    const newErrors: Record<string, string> = {};
+
+    if (nombre.length < 2) {
+      newErrors.nombre = 'El nombre debe tener al menos 2 caracteres';
+    }
+
+    if (!email.includes('@')) {
+      newErrors.email = 'Email inválido';
+    }
+
+    if (password.length < 6) {
+      newErrors.password = 'La contraseña debe tener al menos 6 caracteres';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = () => {
+    if (validar()) {
+      setShowSuccess(true);
+      // Aquí enviarías los datos a una API
+    }
+  };
+
+  return (
+    <Card header={<h2>Registro de Usuario</h2>}>
+      {showSuccess && (
+        <Alert
+          variant="success"
+          dismissible
+          onDismiss={() => setShowSuccess(false)}
+        >
+          ¡Usuario registrado exitosamente!
+        </Alert>
+      )}
+
+      <Input
+        label="Nombre completo"
+        value={nombre}
+        onChange={setNombre}
+        error={errors.nombre}
+        required
+      />
+
+      <Input
+        label="Email"
+        type="email"
+        value={email}
+        onChange={setEmail}
+        error={errors.email}
+        required
+      />
+
+      <Input
+        label="Contraseña"
+        type="password"
+        value={password}
+        onChange={setPassword}
+        error={errors.password}
+        required
+      />
+
+      <Button
+        label="Registrarse"
+        variant="primary"
+        onClick={handleSubmit}
+      />
+    </Card>
+  );
+}
+
+export default RegistroUsuario;
+```
+
+**Resultado del workflow**: Sistema completo de componentes UI con:
+- 6 componentes reutilizables (Button, Input, Card, Badge, Avatar, Alert)
+- Types compartidos para consistencia
+- Validación integrada en Input
+- Accesibilidad completa (ARIA labels, roles, estados)
+- Fácil de importar y usar: `import { Button, Input } from './components/ui'`
+
+### Comandos Slash Útiles
+
+Si configuraste custom commands para Claude Code:
+
+- `/crear-componente [nombre]` - Genera boilerplate de componente con props interface
+- `/extraer-componente` - Analiza código seleccionado y sugiere extracción
+- `/documentar-props` - Genera documentación JSDoc para props del componente
+
+### Tres Errores Comunes que Claude Code Previene
+
+**Error 1: Props drilling (pasar props a través de muchos niveles)**
+
+Código problemático:
+```tsx
+// App.tsx
+function App() {
+  const user = { name: 'Ana', email: 'ana@email.com' };
+  return <Layout user={user} />;
+}
+
+// Layout.tsx
+function Layout({ user }) {
+  return <Sidebar user={user} />;
+}
+
+// Sidebar.tsx
+function Sidebar({ user }) {
+  return <UserInfo user={user} />;
+}
+
+// UserInfo.tsx
+function UserInfo({ user }) {
+  return <p>{user.name}</p>;
+}
+```
+
+**Claude Code sugiere**: "Detecté que pasas `user` a través de 3 componentes solo para usarlo en el último. Considera usar Context API o extraer UserInfo a un nivel más alto."
+
+**Error 2: Componentes demasiado genéricos o demasiado específicos**
+
+Código problemático (demasiado específico):
+```tsx
+function BotonAzulPequenoPerfil() {
+  return <button className="bg-blue-500 text-sm">Ver perfil</button>;
+}
+
+function BotonRojoGrandeEliminar() {
+  return <button className="bg-red-500 text-lg">Eliminar</button>;
+}
+
+function BotonVerdeMedianoGuardar() {
+  return <button className="bg-green-500 text-base">Guardar</button>;
+}
+```
+
+**Claude Code sugiere**: "Estos 3 componentes hacen básicamente lo mismo. Te ayudo a crear un componente Button reutilizable:"
+
+```tsx
+interface ButtonProps {
+  label: string;
+  variant: 'primary' | 'danger' | 'success';
+  size: 'small' | 'medium' | 'large';
+  onClick: () => void;
+}
+
+function Button({ label, variant, size, onClick }: ButtonProps) {
+  // Implementación única, múltiples usos
+}
+```
+
+**Error 3: No documentar interfaces de props**
+
+Código sin documentación:
+```tsx
+interface UserCardProps {
+  user: User;
+  onClick: (id: number) => void;
+  showEmail: boolean;
+  variant: string;
+}
+```
+
+**Claude Code genera**:
+```tsx
+/**
+ * Props para el componente UserCard
+ */
+interface UserCardProps {
+  /** Objeto usuario con información completa */
+  user: User;
+
+  /** Callback ejecutado al hacer clic en la tarjeta */
+  onClick: (id: number) => void;
+
+  /** Si true, muestra el email del usuario */
+  showEmail: boolean;
+
+  /** Variante visual: 'compact' muestra versión resumida, 'full' muestra toda la info */
+  variant: 'compact' | 'full';
+}
+```
+
+Claude Code añade JSDoc comments que aparecen como tooltips en VS Code cuando usas el componente.
+
+### Tabla Comparativa: Con vs Sin Claude Code
+
+| Aspecto | Sin Claude Code | Con Claude Code |
+|---------|----------------|----------------|
+| **Crear componente nuevo** | 15-20 min escribiendo interface, lógica, estilos | 2-3 min con prompt, revisar y ajustar |
+| **Extraer componente de código repetido** | Identificación manual, propenso a olvidar props | Análisis automático del patrón, extracción completa |
+| **Definir tipos de props** | A menudo incompletos o demasiado permisivos (`any`) | Types precisos con union types y opcionales correctos |
+| **Documentación de props** | Rara vez se hace, queda en "la haré después" | JSDoc generado automáticamente con descripciones |
+| **Accesibilidad (ARIA)** | Olvidada en el 80% de componentes | Claude Code incluye ARIA labels, roles automáticamente |
+| **Manejo de errores** | Validación básica o inexistente | Validación completa con estados de error |
+| **Estilos** | CSS inconsistente, nombres inventados | Clases bien nombradas, estilos cohesivos |
+| **Sistema de componentes** | Crece orgánicamente sin plan → caos | Estructura planificada y escalable desde el inicio |
+
+**Insight clave**: Claude Code no solo escribe código más rápido, crea componentes MÁS ROBUSTOS de los que escribirías manualmente en el doble de tiempo.
+
+---
+
 ## Concepto 1: ¿Qué son las props?
 
 **Props** es la abreviatura de "properties" (propiedades en inglés). Son la forma en que pasas información de un componente padre a un componente hijo.
@@ -533,7 +1259,7 @@ Ahora puedes usarla sin esa prop:
 
 **Objetivo simple**: Crear un componente `TarjetaPelicula` que muestre información de películas y usarlo para crear una lista de 4 películas.
 
-**Tiempo**: 25-30 minutos
+**Tiempo**: 25-30 minutos (15-20 min con Claude Code)
 
 **Lo que necesitas antes de empezar**:
 - [ ] Proyecto React funcionando (`npm run dev`)
@@ -597,6 +1323,98 @@ Ahora puedes usarla sin esa prop:
 2. Muestra una imagen del poster en cada tarjeta (usa `https://via.placeholder.com/200x300` como placeholder)
 3. Añade una prop opcional `visto` (boolean) que, si es `true`, muestre una etiqueta "Ya vista" en la esquina de la tarjeta
 
+### Hazlo con Claude Code
+
+Claude Code puede ayudarte a completar este ejercicio de forma más rápida y profesional. Aquí está cómo:
+
+**Paso 1: Genera el componente completo**
+
+Usa este prompt:
+```
+Crea un componente TarjetaPelicula en TypeScript React con:
+- Props: titulo, director, año (number), genero, calificacion (number), poster (url string), visto (boolean opcional)
+- Muestra toda la información en una tarjeta
+- Si visto es true, muestra badge "Ya vista"
+- Calificación como "X/10" destacada
+- Estilos CSS con clase "tarjeta-pelicula"
+- Export default
+```
+
+**Paso 2: Genera el App.tsx con las 4 películas**
+
+```
+Modifica App.tsx para usar TarjetaPelicula 4 veces con estas películas:
+1. Inception (Christopher Nolan, 2010, Ciencia ficción, 8.8, visto: true)
+2. El Padrino (Francis Ford Coppola, 1972, Drama, 9.2, visto: false)
+3. Parasite (Bong Joon-ho, 2019, Thriller, 8.5, visto: true)
+4. Toy Story (John Lasseter, 1995, Animación, 8.3, visto: false)
+
+Usa flexbox con flex-wrap para grid responsive
+```
+
+**Paso 3: Genera los estilos CSS**
+
+```
+Crea estilos CSS para .tarjeta-pelicula con:
+- Borde, border-radius, padding, sombra
+- Width: 48% para 2 columnas
+- Hover effect que eleva la tarjeta
+- Calificación destacada en verde
+- Badge "Ya vista" en esquina superior derecha si aplica
+- Poster con height fija y object-fit cover
+```
+
+**Ventaja de Claude Code**: En 5-10 minutos tienes componente completo con TypeScript correcto, estilos profesionales, y accesibilidad incluida. Puedes dedicar el resto del tiempo a personalizar y aprender del código generado.
+
+---
+
+## Ejercicio Extra: Workflow con Claude Code
+
+**Objetivo**: Crear un sistema de filtrado de películas por género usando los conceptos de props.
+
+**Tiempo**: 20-25 minutos con Claude Code
+
+**Instrucciones**:
+
+1. Amplía tu componente `TarjetaPelicula` para que acepte una prop `onGeneroClick` que se ejecute al hacer clic en el género
+
+2. Crea un componente `FiltroPeliculas` que:
+   - Reciba un array de géneros disponibles como prop
+   - Muestre botones para cada género
+   - Tenga un prop `onFiltroSeleccionado` que se ejecute cuando se hace clic en un género
+
+3. Modifica `App.tsx` para:
+   - Mantener estado del género seleccionado
+   - Filtrar las películas según el género activo
+   - Pasar el callback de filtrado a los componentes hijos
+
+**Prompt sugerido para Claude Code**:
+```
+Crea un sistema de filtrado de películas:
+
+1. Componente FiltroPeliculas con props:
+   - generos: string[]
+   - generoActivo: string | null
+   - onFiltroSeleccionado: (genero: string | null) => void
+   - Muestra botones para cada género + botón "Todos"
+   - Destaca visualmente el género activo
+
+2. Modifica App.tsx para:
+   - Estado: const [generoActivo, setGeneroActivo] = useState<string | null>(null)
+   - Extraer géneros únicos del array de películas
+   - Filtrar películas: const peliculasFiltradas = generoActivo ? peliculas.filter(p => p.genero === generoActivo) : peliculas
+   - Mostrar FiltroPeliculas arriba del grid
+   - Pasar callbacks apropiados
+
+Usa TypeScript, estilos inline básicos
+```
+
+**Resultado esperado**:
+- Sistema funcional de filtrado
+- Props bien tipadas
+- Comunicación padre-hijo mediante callbacks
+- Demostración práctica de cómo las props permiten comunicación entre componentes
+
 ---
 
 ## Resumen en 3 puntos
@@ -608,6 +1426,8 @@ Hoy aprendiste:
 2. **TypeScript hace las props más seguras**: Usando interfaces, defines exactamente qué props debe recibir un componente y de qué tipo. TypeScript te avisa si olvidas una prop o pasas el tipo incorrecto, evitando errores antes de ejecutar el código.
 
 3. **Un componente, mil usos**: Con props, escribes un componente una sola vez y lo usas cuantas veces quieras con datos diferentes. Esto es el corazón de React: reutilización eficiente de código. Netflix usa un solo componente de tarjeta de película para mostrar miles de películas diferentes.
+
+**Bonus - Claude Code**: Aprendiste cómo Claude Code acelera el desarrollo de componentes reutilizables generando interfaces TypeScript completas, extrayendo componentes de código repetitivo, y creando sistemas de componentes escalables con mejores prácticas de accesibilidad y documentación automáticamente incluidas.
 
 ---
 

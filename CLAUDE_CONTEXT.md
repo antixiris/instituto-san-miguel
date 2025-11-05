@@ -2232,6 +2232,496 @@ prisma.lesson.findMany({ where: { type: 'VIDEO' } }).then(lessons => {
 
 ---
 
-**Última actualización:** 3 de Noviembre de 2025
-**Versión:** 1.3.1 - Corrección de documentación de incrustación de videos
+## 🔄 Sesión 5 Nov 2025 - Sistema de Gamificación y GameExercises
+
+### Trabajo Realizado
+
+#### 1. Integración GameExercise con Sistema de Gamificación
+
+**Problema inicial:** Existían 52 GameExercises en la base de datos pero no otorgaban XP ni se integraban con el sistema de gamificación.
+
+**Archivo:** `/backend/src/controllers/gameExercises.controller.ts`
+
+**Cambios realizados (líneas 378-388):**
+```typescript
+// 🎮 INTEGRACIÓN CON GAMIFICACIÓN
+if (evaluationResult.passed) {
+  try {
+    await gamificationService.completeExercise(userId, exerciseId, evaluationResult.score);
+    console.log(`✅ Gamification updated: User ${userId} completed exercise ${exerciseId} with score ${evaluationResult.score}`);
+  } catch (error) {
+    console.error('⚠️ Error updating gamification for game exercise:', error);
+    // No lanzar error, el ejercicio se guardó correctamente
+  }
+}
+```
+
+**Características:**
+- **+50 XP** por GameExercise aprobado (score ≥ 5/10)
+- XP proporcional al score obtenido
+- Incrementa contador `totalExercisesCompleted` en UserProgress
+- Integración no intrusiva (error no bloquea guardado del ejercicio)
+
+#### 2. Endpoint GameExercises para Vista de Lecciones
+
+**Archivo:** `/backend/src/controllers/lessons.controller.ts`
+
+**Cambios realizados (líneas 45-55):**
+```typescript
+gameExercise: {
+  select: {
+    id: true,
+    title: true,
+    type: true,
+    instructions: true,
+    points: true,
+    timeLimit: true,
+    isActive: true,
+  },
+}
+```
+
+**También agregado (línea 29):**
+```typescript
+slug: true, // Faltaba para navegación en frontend
+```
+
+**Decisión técnica:** Relación 1-a-1 entre Lesson y GameExercise
+- Campo: `gameExercise` (singular)
+- Schema Prisma: `lessonId String @unique`
+
+#### 3. Corrección Frontend - LessonView.tsx
+
+**Archivo:** `/frontend/src/pages/campus/student/LessonView.tsx`
+
+**Problema:** Usaba `gameExercises` (plural, array) cuando debía ser `gameExercise` (singular, objeto)
+
+**Interface corregida (líneas 27-35):**
+```typescript
+gameExercise?: {
+  id: string;
+  title: string;
+  type: string;
+  instructions: string;
+  points: number;
+  timeLimit?: number;
+  isActive: boolean;
+} | null;
+```
+
+**Renderizado corregido (líneas 205-243):**
+```tsx
+{lesson.gameExercise && lesson.gameExercise.isActive && (
+  <div className="bg-white dark:bg-neutral-900 rounded-lg shadow-lg p-8">
+    {!showExercise ? (
+      // Botón "Comenzar Ejercicio"
+    ) : (
+      <GameExercise
+        exerciseId={lesson.gameExercise.id}
+        lessonId={lesson.id}
+        onComplete={handleExerciseComplete}
+      />
+    )}
+  </div>
+)}
+```
+
+#### 4. Página Dedicada de Ejercicios
+
+**Descubrimiento:** Los GameExercises NO estaban diseñados solo para aparecer en lecciones, sino que tienen su propia página dedicada en el sidebar: **"Ejercicios"**
+
+**Archivo creado:** `/frontend/src/pages/campus/student/ExercisesPage.tsx` (360 líneas)
+
+**Características principales:**
+
+**Stats Cards (líneas 115-169):**
+- Total de ejercicios
+- Ejercicios completados (✅)
+- Ejercicios pendientes (🎯)
+- Puntos XP ganados (🏆)
+
+**Filtros (líneas 173-206):**
+- Todos
+- Pendientes
+- Completados
+
+**Lista de ejercicios (líneas 211-301):**
+- Card por ejercicio con:
+  - Emoji según tipo (📝 ✅ 📋 🔗 🔢 💻)
+  - Título del ejercicio
+  - Módulo y lección asociados
+  - Badge de tipo (Opción Múltiple, Verdadero/Falso, etc.)
+  - Puntos XP
+  - Tiempo límite (si existe)
+  - Intentos realizados
+  - Mejor puntuación
+  - Estado de completación
+  - Botón "Comenzar" o icono completado
+
+**Navegación:**
+- Click en ejercicio → redirige a `/campus/lecciones/:lessonId`
+- Dentro de la lección, el ejercicio aparece después del contenido
+
+#### 5. Endpoint Backend para Lista de Ejercicios
+
+**Archivo:** `/backend/src/controllers/gameExercises.controller.ts`
+
+**Nueva función agregada (líneas 441-524):**
+```typescript
+export const getMyExercises = async (req: AuthRequest, res: Response) => {
+  // Obtiene TODOS los GameExercises activos
+  // Con submissions del usuario
+  // Calcula: bestScore, attempts, completed
+  // Ordena por módulo y lección
+}
+```
+
+**Ruta agregada:** `/backend/src/routes/gameExercises.routes.ts` (línea 20)
+```typescript
+router.get('/game-exercises/my-exercises', getMyExercises);
+```
+
+**Datos devueltos:**
+```typescript
+{
+  id: string;
+  title: string;
+  type: GameExerciseType;
+  points: number;
+  timeLimit?: number;
+  isActive: boolean;
+  lesson: {
+    id: string;
+    title: string;
+    module: {
+      id: string;
+      title: string;
+      order: number;
+    };
+  };
+  bestScore?: number;
+  attempts: number;
+  completed: boolean;
+}
+```
+
+#### 6. Rutas de Frontend Agregadas
+
+**Archivo:** `/frontend/src/App.tsx`
+
+**Imports agregados (líneas 28-29):**
+```typescript
+import ExercisesPage from './pages/campus/student/ExercisesPage';
+import LessonView from './pages/campus/student/LessonView';
+```
+
+**Rutas agregadas (líneas 132 y 134):**
+```typescript
+<Route path="/campus/lecciones/:lessonId" element={<LessonView />} />
+<Route path="/campus/ejercicios" element={<ExercisesPage />} />
+```
+
+**Solución del error:** El error "No routes matched location" se debía a que faltaba definir la ruta `/campus/lecciones/:lessonId`
+
+#### 7. Dashboard Ya Configurado
+
+**Archivo verificado:** `/frontend/src/components/gamification/DashboardProgress.tsx`
+
+**Confirmado que ya muestra:**
+- Ejercicios completados (líneas 161-169)
+- Estadísticas en cards (líneas 148-199)
+- Datos vienen de `stats.exercisesCompleted` del endpoint `/gamification/dashboard`
+
+**No requirió modificaciones** - El contador de ejercicios ya estaba implementado correctamente
+
+### Archivos Modificados
+
+#### Backend
+```
+src/controllers/gameExercises.controller.ts
+├── Líneas 378-388: Integración con gamificationService
+└── Líneas 441-524: Nueva función getMyExercises()
+
+src/controllers/lessons.controller.ts
+├── Línea 29: Agregado course.slug
+└── Líneas 45-55: Agregado gameExercise con select
+
+src/routes/gameExercises.routes.ts
+├── Línea 10: Import getMyExercises
+└── Línea 20: Ruta GET /game-exercises/my-exercises
+```
+
+#### Frontend
+```
+src/pages/campus/student/ExercisesPage.tsx (NUEVO - 360 líneas)
+├── Stats cards con métricas
+├── Filtros (Todos/Pendientes/Completados)
+├── Lista completa de ejercicios
+└── Navegación a lecciones
+
+src/pages/campus/student/LessonView.tsx
+├── Líneas 27-35: Interface gameExercise corregida
+└── Líneas 205-243: Renderizado condicional corregido
+
+src/App.tsx
+├── Líneas 28-29: Imports agregados
+├── Línea 131: Ruta /campus/lecciones/:lessonId
+└── Línea 132: Ruta /campus/ejercicios
+```
+
+### Decisiones Técnicas Importantes
+
+#### 1. Relación 1-a-1 Lesson ↔ GameExercise
+
+**Decisión:** Cada lección puede tener máximo 1 GameExercise
+
+**Schema Prisma:**
+```prisma
+model GameExercise {
+  lessonId String @unique
+  // ...
+}
+```
+
+**Implicaciones:**
+- En BD: campo `gameExercise` (singular)
+- En API: objeto único, no array
+- En Frontend: renderizado condicional simple
+
+#### 2. Doble Acceso a GameExercises
+
+**Decisión:** Los ejercicios son accesibles de 2 formas
+
+**Opción 1 - Página dedicada (Principal):**
+```
+Sidebar → Ejercicios (/campus/ejercicios)
+├── Vista consolidada de 52 ejercicios
+├── Filtros y estadísticas
+└── Click → navega a lección correspondiente
+```
+
+**Opción 2 - Dentro de lección (Contextual):**
+```
+Mis Cursos → Módulo → Lección → Scroll down
+└── Sección "Ejercicio Práctico" al final del contenido
+```
+
+**Ventajas del enfoque dual:**
+- Vista global para planificar
+- Acceso contextual durante el estudio
+- Flexibilidad para diferentes estilos de aprendizaje
+
+#### 3. Integración No Intrusiva con Gamificación
+
+**Decisión:** Error en gamificación NO bloquea guardado del ejercicio
+
+```typescript
+try {
+  await gamificationService.completeExercise(...);
+} catch (error) {
+  console.error('⚠️ Error updating gamification:', error);
+  // NO lanzar error, el ejercicio se guardó correctamente
+}
+```
+
+**Razones:**
+- Prioridad: guardar progreso del estudiante
+- Gamificación es feature secundaria
+- Evita frustración por errores técnicos
+- Permite debugging sin afectar UX
+
+#### 4. XP Proporcional a la Puntuación
+
+**Decisión:** XP base 50, escalado según score obtenido
+
+**Cálculo en gamificationService:**
+```typescript
+const baseXP = 50;
+const xpGained = Math.round((score / 10) * baseXP);
+// Score 10/10 → 50 XP
+// Score 7.5/10 → 38 XP
+// Score 5.0/10 → 25 XP (mínimo para aprobar)
+```
+
+**Ventajas:**
+- Incentiva excelencia
+- Recompensa proporcional al esfuerzo
+- Score mínimo aprobado sigue dando XP
+- Balance entre accesibilidad y mérito
+
+### Problemas Resueltos
+
+#### 1. Singular vs Plural (gameExercise vs gameExercises)
+
+**Problema:**
+- Backend devolvía `gameExercise` (objeto singular)
+- Frontend esperaba `gameExercises` (array)
+- Causaba que no se renderizaran los ejercicios
+
+**Diagnóstico:**
+```
+Schema Prisma: lessonId @unique → relación 1-a-1
+Backend: include gameExercise (singular)
+Frontend: lesson.gameExercises[0] (array) ❌
+```
+
+**Solución:**
+1. Corregir interface en LessonView.tsx a singular
+2. Cambiar `gameExercises.length > 0` → `gameExercise && gameExercise.isActive`
+3. Cambiar `gameExercises[0].id` → `gameExercise.id`
+
+#### 2. Ruta No Encontrada (/campus/lecciones/:lessonId)
+
+**Problema:** Click en "Comenzar" de ejercicio → pantalla en blanco
+
+**Error de consola:**
+```
+No routes matched location "/campus/lecciones/cmh7golqs000bgrhvxmueiyun"
+```
+
+**Diagnóstico:** La ruta no estaba definida en App.tsx
+
+**Solución:**
+```typescript
+// Antes: Solo había /campus/cursos/:slug
+// Después: Agregada ruta específica para lecciones
+<Route path="/campus/lecciones/:lessonId" element={<LessonView />} />
+```
+
+#### 3. Falta de Slug en Course
+
+**Problema:** Botón "Volver al curso" en LessonView causaba error
+
+**Diagnóstico:** Backend no devolvía `course.slug`, solo `course.id`
+
+**Solución:**
+```typescript
+// lessons.controller.ts línea 29
+course: {
+  select: {
+    id: true,
+    title: true,
+    slug: true,  // ← AGREGADO
+  }
+}
+```
+
+### Estado del Sistema de GameExercises
+
+#### Distribución por Módulo
+```
+Módulo 1: 5 ejercicios ✅
+Módulo 2: 6 ejercicios ✅
+Módulo 3: 5 ejercicios ✅
+Módulo 4: 6 ejercicios ✅
+Módulo 5: 6 ejercicios ✅
+Módulo 6: 6 ejercicios ✅
+Módulo 7: 6 ejercicios ✅
+Módulo 8: 6 ejercicios ✅
+Módulo 9: 6 ejercicios ✅
+
+Total: 52 GameExercises activos
+```
+
+#### Tipos de Ejercicios
+```
+📝 MULTIPLE_CHOICE   - Opción múltiple
+✅ TRUE_FALSE        - Verdadero/Falso
+📋 FILL_BLANKS       - Completar espacios
+🔗 MATCHING_PAIRS    - Emparejar
+🔢 SEQUENCE_ORDER    - Ordenar secuencia
+💻 CODE_CHALLENGE    - Desafío de código
+```
+
+#### Sistema de Evaluación
+```
+Puntuación: 0-10
+Aprobado: score ≥ 5.0
+XP base: 50 puntos
+XP real: proporcional al score
+Reintentos: ilimitados
+Mejor score: guardado
+```
+
+#### Integración Completa
+```
+✅ Backend: endpoint getMyExercises
+✅ Backend: integración con gamificationService
+✅ Frontend: página ExercisesPage
+✅ Frontend: renderizado en LessonView
+✅ Rutas: /campus/ejercicios y /campus/lecciones/:lessonId
+✅ Dashboard: contador de ejercicios completados
+✅ Navegación: funcional entre vistas
+```
+
+### Flujos de Usuario
+
+#### Flujo 1: Desde Página de Ejercicios
+1. Estudiante → Sidebar → "Ejercicios"
+2. Ve lista de 52 ejercicios con stats
+3. Filtra por "Pendientes"
+4. Click en "Comenzar" → navega a lección
+5. Lección se carga con contenido + video
+6. Scroll down → sección "Ejercicio Práctico"
+7. Click "Comenzar Ejercicio" → componente interactivo
+8. Completa ejercicio → calificación automática
+9. Si aprobado → +50 XP y marca como completado
+
+#### Flujo 2: Desde Navegación del Curso
+1. Estudiante → "Mis Cursos" → Módulo X
+2. Navega a lección específica
+3. Ve contenido de la lección
+4. Scroll down → encuentra "Ejercicio Práctico"
+5. Click "Comenzar Ejercicio"
+6. Mismo flujo de completación
+
+#### Flujo 3: Revisión de Ejercicio Completado
+1. Desde "Ejercicios" → ve badge "Completado" ✅
+2. Muestra mejor puntuación: "Mejor: 8.5/10"
+3. Puede hacer click para ver lección de nuevo
+4. Puede repetir ejercicio para mejorar score
+
+### Próximos Pasos Sugeridos
+
+#### 1. Revisión de Contenido de Ejercicios
+**Nota del usuario:** "no me convencen los ejercicios. Habría que revisarlos y rehacerlos"
+
+**Tareas propuestas:**
+- Revisar las 52 configuraciones de GameExercise en BD
+- Validar que preguntas sean relevantes al contenido
+- Mejorar calidad de opciones incorrectas (distractores)
+- Añadir explicaciones más detalladas
+- Verificar dificultad progresiva
+
+#### 2. Editor Visual de GameExercises (Admin/Profesor)
+- Interface CRUD para crear/editar ejercicios
+- Preview en tiempo real
+- Banco de preguntas reutilizables
+- Importación desde JSON
+- Validación de configuración
+
+#### 3. Analytics de GameExercises
+- Tasa de aprobación por ejercicio
+- Ejercicios más difíciles
+- Tiempo promedio de completación
+- Identificar ejercicios problemáticos
+- Métricas de calidad
+
+#### 4. Mejoras en Componente GameExercise
+- Soporte para imágenes en preguntas
+- Code snippets con syntax highlighting
+- Explicaciones expandibles
+- Pistas (hints) opcionales
+- Modo práctica vs evaluación
+
+#### 5. Sistema de Logros por Ejercicios
+- "Perfeccionista" - 10 ejercicios con 10/10
+- "Persistente" - 5 ejercicios con múltiples intentos
+- "Especialista" - Completar todos de un módulo
+- "Maestro del Código" - Todos los CODE_CHALLENGE
+
+---
+
+**Última actualización:** 5 de Noviembre de 2025
+**Versión:** 1.4.0 - Sistema de Gamificación y GameExercises Integrados
 **Estado:** En desarrollo activo

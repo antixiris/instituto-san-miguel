@@ -183,3 +183,50 @@ export function getRoleColor(role: 'ADMIN' | 'INSTRUCTOR' | 'PROFESOR' | 'STUDEN
   const normalizedRole = role === 'INSTRUCTOR' ? 'PROFESOR' : role;
   return roleColors[normalizedRole]?.[variant] || roleColors.STUDENT[variant];
 }
+
+// Helper para obtener clases completas de Tailwind (evita problemas con clases dinámicas)
+export function getRoleClasses(role: 'ADMIN' | 'INSTRUCTOR' | 'PROFESOR' | 'STUDENT' | undefined) {
+  const normalizedRole = role === 'INSTRUCTOR' ? 'PROFESOR' : (role || 'STUDENT');
+
+  const classes = {
+    ADMIN: {
+      iconColor: 'text-red-600',
+      bgPrimary: 'bg-red-600',
+      bgPrimaryDark: 'bg-red-500',
+      bgLight: 'bg-red-50',
+      textPrimary: 'text-red-600',
+      textDark: 'text-red-700',
+      borderColor: 'border-red-200',
+      // Para items activos del sidebar
+      activeBg: 'bg-red-50 dark:bg-red-600 dark:bg-opacity-10',
+      activeText: 'text-red-600',
+      badgeBg: 'bg-red-600',
+    },
+    PROFESOR: {
+      iconColor: 'text-blue-600',
+      bgPrimary: 'bg-blue-600',
+      bgPrimaryDark: 'bg-blue-500',
+      bgLight: 'bg-blue-50',
+      textPrimary: 'text-blue-600',
+      textDark: 'text-blue-700',
+      borderColor: 'border-blue-200',
+      activeBg: 'bg-blue-50 dark:bg-blue-600 dark:bg-opacity-10',
+      activeText: 'text-blue-600',
+      badgeBg: 'bg-blue-600',
+    },
+    STUDENT: {
+      iconColor: 'text-green-600',
+      bgPrimary: 'bg-green-600',
+      bgPrimaryDark: 'bg-green-500',
+      bgLight: 'bg-green-50',
+      textPrimary: 'text-green-600',
+      textDark: 'text-green-700',
+      borderColor: 'border-green-200',
+      activeBg: 'bg-green-50 dark:bg-green-600 dark:bg-opacity-10',
+      activeText: 'text-green-600',
+      badgeBg: 'bg-green-600',
+    },
+  };
+
+  return classes[normalizedRole];
+}

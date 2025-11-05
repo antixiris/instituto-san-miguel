@@ -24,6 +24,7 @@ import moduleTestsRoutes from './routes/moduleTests.routes';
 import gradesRoutes from './routes/grades.routes';
 import enrollmentsRoutes from './routes/enrollments.routes';
 import pdfRoutes from './routes/pdfRoutes';
+import gamificationRoutes from './routes/gamificationRoutes';
 
 // Importar middleware
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
@@ -149,6 +150,7 @@ app.use('/api/users', usersRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/enrollments', enrollmentsRoutes);
 app.use('/api/pdf', pdfRoutes);
+app.use('/api/gamification', gamificationRoutes); // Sistema de gamificación XP
 
 // Middleware de error 404
 app.use(notFoundHandler);

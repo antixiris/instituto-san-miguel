@@ -1,7 +1,7 @@
 import { Menu, Bell, Moon, Sun, ChevronDown, User, LogOut } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useThemeStore } from '../../store/themeStore';
-import { getRoleColor } from '../../config/navigation';
+import { getRoleClasses } from '../../config/navigation';
 import { useNavigate } from 'react-router-dom';
 import { useState, useRef, useEffect } from 'react';
 import clsx from 'clsx';
@@ -16,6 +16,7 @@ export default function CampusNavbar({ onMenuClick }: CampusNavbarProps) {
   const navigate = useNavigate();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const roleClasses = getRoleClasses(user?.role);
 
   // Cerrar el menú al hacer clic fuera
   useEffect(() => {
@@ -90,7 +91,7 @@ export default function CampusNavbar({ onMenuClick }: CampusNavbarProps) {
             >
               <div className={clsx(
                 'w-9 h-9 rounded-full flex items-center justify-center text-white font-semibold text-sm shadow-sm',
-                user?.role && `bg-${getRoleColor(user.role)}`
+                roleClasses.bgPrimary
               )}>
                 {user?.firstName?.[0]}{user?.lastName?.[0]}
               </div>

@@ -65,6 +65,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: () => {
+    console.log('🚪 LOGOUT called from:', new Error().stack);
     authService.logout();
     set({
       user: null,
@@ -73,10 +74,31 @@ export const useAuthStore = create<AuthState>((set) => ({
     });
   },
 
-  loadUser: () => {
+  loadUser: async () => {
+    console.log('🔄 loadUser called');
     const user = authService.getUser();
     const isAuthenticated = authService.isAuthenticated();
-    set({ user, isAuthenticated });
+    console.log('📊 Current state:', { hasUser: !!user, isAuthenticated });
+
+    // Si tiene token pero no tiene user data, cargar desde el servidor
+    if (isAuthenticated && !user) {
+      console.log('⚠️ Has token but no user, fetching profile...');
+      try {
+        set({ isLoading: true });
+        const profile = await authService.getProfile();
+        console.log('✅ Profile loaded:', profile.email);
+        authService.saveUser(profile);
+        set({ user: profile, isAuthenticated: true, isLoading: false });
+      } catch (error) {
+        console.error('❌ Error loading user profile:', error);
+        // Si falla, hacer logout
+        authService.logout();
+        set({ user: null, isAuthenticated: false, isLoading: false });
+      }
+    } else {
+      console.log('✅ Setting user from localStorage');
+      set({ user, isAuthenticated });
+    }
   },
 
   updateUser: async (data) => {
